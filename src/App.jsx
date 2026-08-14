@@ -977,6 +977,71 @@ export default function App() {
     if (ids.length < 2) return;
     const snapShot = serialize();
     const chosen = nodesRef.current.filter((n) => ids.includes(n.id));
+
+    if (dir === "distribute-h" || dir === "hdistribute") {
+      if (chosen.length < 3) return;
+      const sorted = [...chosen].sort((a, b) => a.x - b.x);
+      const minX = sorted[0].x;
+      const last = sorted[sorted.length - 1];
+      const maxX = last.x + last.w;
+      const totalNodeW = sorted.reduce((sum, n) => sum + n.w, 0);
+      const remainingSpace = maxX - minX - totalNodeW;
+      const gap = remainingSpace / (sorted.length - 1);
+
+      const newXMap = new Map();
+      let curX = minX;
+      for (let i = 0; i < sorted.length; i++) {
+        const n = sorted[i];
+        if (i === 0) {
+          newXMap.set(n.id, n.x);
+          curX = n.x + n.w + gap;
+        } else if (i === sorted.length - 1) {
+          newXMap.set(n.id, n.x);
+        } else {
+          newXMap.set(n.id, sn(curX));
+          curX += n.w + gap;
+        }
+      }
+
+      pushUndo(snapShot);
+      setNodes((ns) =>
+        ns.map((n) => (newXMap.has(n.id) ? { ...n, x: newXMap.get(n.id) } : n)),
+      );
+      return;
+    }
+
+    if (dir === "distribute-v" || dir === "vdistribute") {
+      if (chosen.length < 3) return;
+      const sorted = [...chosen].sort((a, b) => a.y - b.y);
+      const minY = sorted[0].y;
+      const last = sorted[sorted.length - 1];
+      const maxY = last.y + last.h;
+      const totalNodeH = sorted.reduce((sum, n) => sum + n.h, 0);
+      const remainingSpace = maxY - minY - totalNodeH;
+      const gap = remainingSpace / (sorted.length - 1);
+
+      const newYMap = new Map();
+      let curY = minY;
+      for (let i = 0; i < sorted.length; i++) {
+        const n = sorted[i];
+        if (i === 0) {
+          newYMap.set(n.id, n.y);
+          curY = n.y + n.h + gap;
+        } else if (i === sorted.length - 1) {
+          newYMap.set(n.id, n.y);
+        } else {
+          newYMap.set(n.id, sn(curY));
+          curY += n.h + gap;
+        }
+      }
+
+      pushUndo(snapShot);
+      setNodes((ns) =>
+        ns.map((n) => (newYMap.has(n.id) ? { ...n, y: newYMap.get(n.id) } : n)),
+      );
+      return;
+    }
+
     const minX = Math.min(...chosen.map((n) => n.x)),
       maxX = Math.max(...chosen.map((n) => n.x + n.w));
     const minY = Math.min(...chosen.map((n) => n.y)),

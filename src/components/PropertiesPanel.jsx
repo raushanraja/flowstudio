@@ -9,6 +9,8 @@ import {
   AlignStartVertical,
   AlignCenterHorizontal,
   AlignEndVertical,
+  AlignHorizontalSpaceBetween,
+  AlignVerticalSpaceBetween,
   Unlink,
   X,
   RotateCcw,
@@ -23,6 +25,11 @@ const ALIGN_BTNS = [
   ["top", AlignStartVertical, "Align top"],
   ["vcenter", AlignCenterHorizontal, "Align vertical center"],
   ["bottom", AlignEndVertical, "Align bottom"],
+];
+
+const DISTRIBUTE_BTNS = [
+  ["distribute-h", AlignHorizontalSpaceBetween, "Distribute horizontally"],
+  ["distribute-v", AlignVerticalSpaceBetween, "Distribute vertically"],
 ];
 
 function ColorField({ label, value, onChange, allowTransparent = false }) {
@@ -686,11 +693,22 @@ export default function PropertiesPanel({
             </div>
           </div>
 
-          {/* Multi-node Alignment Bar */}
+          {/* Multi-node Alignment & Distribute Bar */}
           <div className="fs-lbl">
-            Align Nodes
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+            Align & Distribute Nodes
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4, alignItems: "center" }}>
               {ALIGN_BTNS.map(([key, Icon, title]) => (
+                <button
+                  key={key}
+                  className="fs-mini"
+                  title={title}
+                  onClick={() => onAlign(key)}
+                >
+                  <Icon size={14} />
+                </button>
+              ))}
+              <div style={{ width: 1, height: 18, background: "var(--border)", margin: "0 2px" }} />
+              {DISTRIBUTE_BTNS.map(([key, Icon, title]) => (
                 <button
                   key={key}
                   className="fs-mini"

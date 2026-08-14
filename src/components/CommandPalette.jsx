@@ -29,6 +29,8 @@ import {
   AlignStartVertical,
   AlignCenterHorizontal,
   AlignEndVertical,
+  AlignHorizontalSpaceBetween,
+  AlignVerticalSpaceBetween,
   Image,
   FileImage,
 } from "lucide-react";
@@ -101,13 +103,15 @@ export default function CommandPalette({
     { id: "group", category: "Organize", title: "Group Selected", icon: Group, shortcut: "Ctrl+G", run: onGroup },
     { id: "ungroup", category: "Organize", title: "Ungroup Selected", icon: BoxSelect, shortcut: "Ctrl+Shift+G", run: onUngroup },
     
-    // Alignment
+    // Alignment & Distribution
     { id: "align-left", category: "Align", title: "Align Left", icon: AlignLeft, run: () => onAlign("left") },
     { id: "align-hcenter", category: "Align", title: "Align Horizontal Center", icon: AlignCenterVertical, run: () => onAlign("hcenter") },
     { id: "align-right", category: "Align", title: "Align Right", icon: AlignRight, run: () => onAlign("right") },
     { id: "align-top", category: "Align", title: "Align Top", icon: AlignStartVertical, run: () => onAlign("top") },
     { id: "align-vcenter", category: "Align", title: "Align Vertical Center", icon: AlignCenterHorizontal, run: () => onAlign("vcenter") },
     { id: "align-bottom", category: "Align", title: "Align Bottom", icon: AlignEndVertical, run: () => onAlign("bottom") },
+    { id: "distribute-h", category: "Align", title: "Distribute Horizontally", icon: AlignHorizontalSpaceBetween, run: () => onAlign("distribute-h") },
+    { id: "distribute-v", category: "Align", title: "Distribute Vertically", icon: AlignVerticalSpaceBetween, run: () => onAlign("distribute-v") },
 
     // View & Canvas
     { id: "fit", category: "Canvas", title: "Fit View to Contents", icon: Maximize2, run: onFit },
