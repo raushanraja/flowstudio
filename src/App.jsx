@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { THEMES, PALETTES } from "./lib/theme.js";
+import {
+  THEMES,
+  PALETTES,
+  GROUP_STYLES,
+  nextTheme,
+  isTheme,
+} from "./lib/theme.js";
 import { normalizeDiagram } from "./lib/diagram.js";
 import { sampleDiagram } from "./lib/sample.js";
 import { extractMermaidSource, mermaidTextToDiagram } from "./lib/mermaid.js";
@@ -51,14 +57,15 @@ function loadDocument() {
 export default function App() {
   const [saved] = useState(loadDocument);
   const [theme, setThemeState] = useState(() => {
-    if (saved?.theme) return saved.theme;
+    if (saved?.theme && isTheme(saved.theme)) return saved.theme;
     try {
-      return localStorage.getItem("fs-theme") === "dark" ? "dark" : "light";
+      const t = localStorage.getItem("fs-theme");
+      return isTheme(t) ? t : "light";
     } catch {
       return "light";
     }
   });
-  const T = THEMES[theme];
+  const T = THEMES[theme] || THEMES.light;
   const [nodes, setNodes] = useState(saved?.nodes ?? INITIAL.nodes);
   const [edges, setEdges] = useState(saved?.edges ?? INITIAL.edges);
   const [scenarios, setScenarios] = useState(saved?.scenarios ?? []);
@@ -389,7 +396,7 @@ export default function App() {
 
   /* ---------- node factory ---------- */
   function makeNode(type, x, y) {
-    const pal = PALETTES[theme];
+    const pal = PALETTES[theme] || PALETTES.light;
     const c = pal[nodesRef.current.length % pal.length];
     const dims = {
       rect: [180, 56],
@@ -422,15 +429,16 @@ export default function App() {
         textColor: T.text,
         text: "Text",
       };
-    if (type === "group")
+    if (type === "group") {
+      const gStyle = GROUP_STYLES[theme] || GROUP_STYLES.light;
       return {
         ...base,
-        fill:
-          theme === "light" ? "rgba(130,130,140,.08)" : "rgba(255,255,255,.04)",
-        stroke: theme === "light" ? "#a1a1aa" : "#52525b",
+        fill: gStyle.fill,
+        stroke: gStyle.stroke,
         textColor: T.text,
         text: "Frame",
       };
+    }
     return {
       ...base,
       fill: c.fill,
@@ -928,6 +936,7 @@ export default function App() {
       by = Math.min(...chosen.map((n) => n.y)) - 24;
     const bw = Math.max(...chosen.map((n) => n.x + n.w)) + 24 - bx,
       bh = Math.max(...chosen.map((n) => n.y + n.h)) + 24 - by;
+    const gStyle = GROUP_STYLES[theme] || GROUP_STYLES.light;
     const g = {
       id: uid(),
       type: "group",
@@ -939,9 +948,8 @@ export default function App() {
       fontSize: 14,
       badge: "",
       parentId: null,
-      fill:
-        theme === "light" ? "rgba(130,130,140,.08)" : "rgba(255,255,255,.04)",
-      stroke: theme === "light" ? "#a1a1aa" : "#52525b",
+      fill: gStyle.fill,
+      stroke: gStyle.stroke,
       textColor: T.text,
       text: "Group",
     };
@@ -1779,7 +1787,7 @@ export default function App() {
         overflow: "hidden",
         background: T.bg,
         color: T.text,
-        colorScheme: theme,
+        colorScheme: theme === "light" ? "light" : "dark",
         accentColor: T.accent,
         "--bg": T.bg,
         "--panel": T.panel,
@@ -1801,7 +1809,7 @@ export default function App() {
           onUndo={undo}
           onRedo={redo}
           onToggleTool={(t) => setTool(t)}
-          onToggleTheme={() => setTheme(theme === "light" ? "dark" : "light")}
+          onToggleTheme={() => setTheme(nextTheme(theme))}
           onOpenCmdPalette={() => setIsCmdPaletteOpen(true)}
           onOpenExportModal={() => setIsExportModalOpen(true)}
           onNew={newDocument}
@@ -1979,7 +1987,8 @@ export default function App() {
         onZoomOut={zoomOut}
         onToggleSnap={() => setSnap((s) => !s)}
         onToggleGrid={() => setShowGrid((s) => !s)}
-        onToggleTheme={() => setTheme(theme === "light" ? "dark" : "light")}
+        onToggleTheme={() => setTheme(nextTheme(theme))}
+        onSetTheme={setTheme}
         onOpenExport={() => {
           setIsCmdPaletteOpen(false);
           setIsExportModalOpen(true);

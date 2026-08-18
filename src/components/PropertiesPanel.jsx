@@ -15,7 +15,13 @@ import {
   X,
   RotateCcw,
 } from "lucide-react";
-import { SHAPE_DEFS, COLOR_PRESETS } from "../lib/theme.js";
+import {
+  SHAPE_DEFS,
+  presetFill,
+  presetText,
+  presetStroke,
+  presetsForTheme,
+} from "../lib/theme.js";
 import { colorToHex } from "../lib/utils.js";
 
 const ALIGN_BTNS = [
@@ -101,6 +107,8 @@ export default function PropertiesPanel({
   const isMixedSelection = selectedCount > 0 && selectedEdges > 0;
 
   const doBatchPatch = patchSelection || patchSelNodes;
+
+  const presets = presetsForTheme(theme);
 
   return (
     <div
@@ -285,7 +293,7 @@ export default function PropertiesPanel({
                       fontSize: 10,
                       justifyContent: "center",
                       border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
-                      background: isSelected ? "var(--accent-glow)" : "transparent",
+                      background: isSelected ? "var(--accent-light)" : "transparent",
                       color: isSelected ? "var(--accent)" : "var(--text)",
                     }}
                     onClick={() => patchEdge(patch, "arrow_style")}
@@ -490,23 +498,25 @@ export default function PropertiesPanel({
           <div className="fs-lbl">
             Preset Palette
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-              {COLOR_PRESETS.map((p) => {
-                const isSelected = single.stroke === p.stroke;
+              {presets.map((p) => {
+                const stroke = presetStroke(p, theme);
+                const fill = presetFill(p, theme);
+                const isSelected = single.stroke === stroke || single.fill === fill;
                 return (
                   <div
                     key={p.label}
                     className={`fs-swatch ${isSelected ? "selected" : ""}`}
                     style={{
-                      background: theme === "light" ? p.fillLight : p.fillDark,
-                      borderColor: p.stroke,
+                      background: fill,
+                      borderColor: stroke,
                     }}
                     title={p.label}
                     onClick={() =>
                       doBatchPatch(
                         {
-                          stroke: p.stroke,
-                          fill: theme === "light" ? p.fillLight : p.fillDark,
-                          textColor: p.stroke,
+                          stroke,
+                          fill,
+                          textColor: presetText(p, theme),
                         },
                         "preset"
                       )
@@ -669,27 +679,31 @@ export default function PropertiesPanel({
           <div className="fs-lbl">
             Preset Palette (All Selected Nodes)
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-              {COLOR_PRESETS.map((p) => (
-                <div
-                  key={p.label}
-                  className="fs-swatch"
-                  style={{
-                    background: theme === "light" ? p.fillLight : p.fillDark,
-                    borderColor: p.stroke,
-                  }}
-                  title={`Apply ${p.label} to all selected nodes`}
-                  onClick={() =>
-                    patchSelNodes(
-                      {
-                        stroke: p.stroke,
-                        fill: theme === "light" ? p.fillLight : p.fillDark,
-                        textColor: p.stroke,
-                      },
-                      "preset"
-                    )
-                  }
-                />
-              ))}
+              {presets.map((p) => {
+                const stroke = presetStroke(p, theme);
+                const fill = presetFill(p, theme);
+                return (
+                  <div
+                    key={p.label}
+                    className="fs-swatch"
+                    style={{
+                      background: fill,
+                      borderColor: stroke,
+                    }}
+                    title={`Apply ${p.label} to all selected nodes`}
+                    onClick={() =>
+                      patchSelNodes(
+                        {
+                          stroke,
+                          fill,
+                          textColor: presetText(p, theme),
+                        },
+                        "preset"
+                      )
+                    }
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -814,27 +828,31 @@ export default function PropertiesPanel({
           <div className="fs-lbl">
             Preset Palette (All Selected)
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-              {COLOR_PRESETS.map((p) => (
-                <div
-                  key={p.label}
-                  className="fs-swatch"
-                  style={{
-                    background: theme === "light" ? p.fillLight : p.fillDark,
-                    borderColor: p.stroke,
-                  }}
-                  title={`Apply ${p.label} to all selected`}
-                  onClick={() =>
-                    doBatchPatch(
-                      {
-                        stroke: p.stroke,
-                        fill: theme === "light" ? p.fillLight : p.fillDark,
-                        textColor: p.stroke,
-                      },
-                      "preset"
-                    )
-                  }
-                />
-              ))}
+              {presets.map((p) => {
+                const stroke = presetStroke(p, theme);
+                const fill = presetFill(p, theme);
+                return (
+                  <div
+                    key={p.label}
+                    className="fs-swatch"
+                    style={{
+                      background: fill,
+                      borderColor: stroke,
+                    }}
+                    title={`Apply ${p.label} to all selected`}
+                    onClick={() =>
+                      doBatchPatch(
+                        {
+                          stroke,
+                          fill,
+                          textColor: presetText(p, theme),
+                        },
+                        "preset"
+                      )
+                    }
+                  />
+                );
+              })}
             </div>
           </div>
 

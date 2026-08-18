@@ -37,7 +37,7 @@ A visual flowchart and diagram editor built with React and Vite. Design diagrams
 - Command Palette (`Ctrl+K` / `Cmd+K`) for fast access to actions, alignment & distribution tools, and shapes.
 - Full undo and redo history tracking.
 - Grid snapping, multi-node alignment (left, center, right, top, bottom), distribution tools (horizontal, vertical spacing), and nudge adjustments.
-- Light and Dark mode with a clean glassmorphic interface.
+- Light, Dark, and Clay themes with tailored preset palettes and a clean glassmorphic interface.
 
 ---
 

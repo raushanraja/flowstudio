@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+import { THEMES } from "../lib/theme.js";
 
 export default function ExportModal({
   isOpen,
@@ -208,7 +209,7 @@ export default function ExportModal({
                     height: 10,
                     borderRadius: "50%",
                     border: "1px solid rgba(255,255,255,0.4)",
-                    background: T?.bg || (theme === "light" ? "#f8fafc" : "#090d16"),
+                    background: T?.bg || THEMES[theme]?.bg || THEMES.dark.bg,
                     display: "inline-block",
                   }}
                 />

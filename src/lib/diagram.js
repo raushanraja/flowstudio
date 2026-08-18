@@ -1,4 +1,5 @@
 import { uid } from "./utils.js";
+import { isTheme } from "./theme.js";
 
 const PORT_SIDES = ["top", "right", "bottom", "left"];
 const CURVE_TYPES = ["basis", "rounded", "linear"];
@@ -39,6 +40,7 @@ export function normalizeDiagram(data) {
       fontSize: num(n.fontSize, 14),
       text: str(n.text, ""),
       badge: str(n.badge, ""),
+      dashed: !!n.dashed,
       parentId: null,
     });
   }
@@ -64,7 +66,13 @@ export function normalizeDiagram(data) {
         strokeWidth: num(e.strokeWidth, 2),
         dashed: !!e.dashed,
         arrow: e.arrow !== false,
+        arrowStart: !!e.arrowStart,
         label: str(e.label, ""),
+        textColor: str(e.textColor, undefined),
+        labelBg: str(e.labelBg, undefined),
+        fontSize: num(e.fontSize, undefined),
+        labelDx: Number.isFinite(+e.labelDx) ? +e.labelDx : undefined,
+        labelDy: Number.isFinite(+e.labelDy) ? +e.labelDy : undefined,
         curve: CURVE_TYPES.includes(e.curve) ? e.curve : undefined,
         toPos:
           e.toPos &&
@@ -108,13 +116,29 @@ export function normalizeDiagram(data) {
             choices[nodeId] = edgeId;
         }
       }
-      scenarios.push({ id, name: String(s.name).slice(0, 60), choices });
+      const loopExits = {};
+      if (s.loopExits && typeof s.loopExits === "object") {
+        for (const [nodeId, edgeId] of Object.entries(s.loopExits)) {
+          if (
+            idSet.has(nodeId) &&
+            edges.some((e) => e.from === nodeId && e.id === edgeId)
+          )
+            loopExits[nodeId] = edgeId;
+        }
+      }
+      scenarios.push({
+        id,
+        name: String(s.name).slice(0, 60),
+        choices,
+        loopExits,
+        maxLoopRetries: Number.isFinite(+s.maxLoopRetries) ? +s.maxLoopRetries : 1,
+      });
     }
   }
   return {
     nodes,
     edges,
-    theme: data.theme === "dark" ? "dark" : "light",
+    theme: isTheme(data.theme) ? data.theme : "light",
     scenarios,
     activeScenarioId:
       typeof data.activeScenarioId === "string" &&

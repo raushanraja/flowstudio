@@ -5,6 +5,7 @@ import {
   MousePointer2,
   Moon,
   Sun,
+  Palette,
   Download,
   FilePlus2,
   Search,
@@ -12,6 +13,7 @@ import {
   Presentation,
   Sparkles,
 } from "lucide-react";
+import { nextTheme, THEME_LABELS } from "../lib/theme.js";
 
 export default function TopBar({
   tool,
@@ -150,14 +152,21 @@ export default function TopBar({
         <Download size={15} />
       </button>
 
-      {/* Theme Toggle */}
-      <button
-        className="fs-btn-ghost"
-        title={`Switch to ${theme === "light" ? "Dark" : "Light"} mode`}
-        onClick={onToggleTheme}
-      >
-        {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
-      </button>
+      {/* Theme Toggle — cycles Light → Dark → Clay */}
+      {(() => {
+        const next = nextTheme(theme);
+        const Icon =
+          theme === "light" ? Sun : theme === "clay" ? Palette : Moon;
+        return (
+          <button
+            className="fs-btn-ghost"
+            title={`Theme: ${THEME_LABELS[theme]} (Click to switch to ${THEME_LABELS[next]})`}
+            onClick={onToggleTheme}
+          >
+            <Icon size={15} />
+          </button>
+        );
+      })()}
 
       {/* Inspector Toggle */}
       <button

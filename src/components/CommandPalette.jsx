@@ -8,6 +8,7 @@ import {
   Workflow,
   Sun,
   Moon,
+  Palette,
   Group,
   BoxSelect,
   Copy,
@@ -34,7 +35,14 @@ import {
   Image,
   FileImage,
 } from "lucide-react";
-import { SHAPE_DEFS } from "../lib/theme.js";
+import {
+  SHAPE_DEFS,
+  THEME_ORDER,
+  THEME_LABELS,
+  nextTheme,
+} from "../lib/theme.js";
+
+const THEME_ICONS = { light: Sun, dark: Moon, clay: Palette };
 
 export default function CommandPalette({
   isOpen,
@@ -58,6 +66,7 @@ export default function CommandPalette({
   onToggleSnap,
   onToggleGrid,
   onToggleTheme,
+  onSetTheme,
   onOpenExport,
   onExportSVG,
   onExportPNG,
@@ -70,6 +79,7 @@ export default function CommandPalette({
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -78,6 +88,15 @@ export default function CommandPalette({
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (listRef.current) {
+      const el = listRef.current.children[selectedIndex];
+      if (el && typeof el.scrollIntoView === "function") {
+        el.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [selectedIndex]);
 
   if (!isOpen) return null;
 
@@ -119,7 +138,14 @@ export default function CommandPalette({
     { id: "zoom-out", category: "Canvas", title: "Zoom Out", icon: ZoomOut, run: onZoomOut },
     { id: "toggle-snap", category: "Canvas", title: "Toggle Grid Snapping", icon: Magnet, run: onToggleSnap },
     { id: "toggle-grid", category: "Canvas", title: "Toggle Canvas Grid", icon: Grid, run: onToggleGrid },
-    { id: "toggle-theme", category: "Appearance", title: `Switch to ${theme === "light" ? "Dark" : "Light"} Mode`, icon: theme === "light" ? Moon : Sun, run: onToggleTheme },
+    { id: "toggle-theme", category: "Appearance", title: `Switch to ${THEME_LABELS[nextTheme(theme)]} Theme`, icon: THEME_ICONS[nextTheme(theme)], run: onToggleTheme },
+    ...THEME_ORDER.map((t) => ({
+      id: `theme-${t}`,
+      category: "Appearance",
+      title: `Use ${THEME_LABELS[t]} Theme${t === theme ? " (current)" : ""}`,
+      icon: THEME_ICONS[t],
+      run: () => onSetTheme?.(t),
+    })),
 
     // File & Export
     { id: "export-modal", category: "File", title: "Export Diagram (Customize SVG / PNG / JSON)", icon: Download, run: onOpenExport },
@@ -206,6 +232,7 @@ export default function CommandPalette({
 
         {/* Action List */}
         <div
+          ref={listRef}
           style={{
             overflowY: "auto",
             padding: 8,

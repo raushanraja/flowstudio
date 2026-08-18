@@ -88,8 +88,9 @@ export default function PlaybackOverlay({
 
   // Restore base strokes when the overlay unmounts.
   useEffect(() => {
+    const svgEl = svgRef?.current;
     return () => {
-      restoreTrailStrokes(svgRef?.current);
+      restoreTrailStrokes(svgEl);
     };
   }, [svgRef]);
 
