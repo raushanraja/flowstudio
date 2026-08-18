@@ -25,6 +25,7 @@ import Canvas from "./components/Canvas.jsx";
 import PropertiesPanel from "./components/PropertiesPanel.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
 import ExportModal from "./components/ExportModal.jsx";
+import { exportDiagramToSvg } from "./lib/exportSvg.js";
 import PlayBar from "./components/PlayBar.jsx";
 import ScenariosPanel from "./components/ScenariosPanel.jsx";
 
@@ -1480,40 +1481,17 @@ export default function App() {
     setTimeout(() => URL.revokeObjectURL(a.href), 500);
   };
   function buildExportSvg(options = {}) {
-    const { transparent = false } =
+    const { transparent = false, padding = 40 } =
       typeof options === "boolean" ? { transparent: options } : options;
-    if (!svgRef.current) return null;
-    const svg = svgRef.current.cloneNode(true);
-    svg.querySelectorAll("[data-overlay]").forEach((el) => el.remove());
-    svg.removeAttribute("style");
     const ns = nodesRef.current;
-    if (!ns.length) return null;
-    const pad = 50;
-    const c = camRef.current;
-    const bx = Math.min(...ns.map((n) => n.x)) - pad,
-      by = Math.min(...ns.map((n) => n.y)) - pad;
-    const bw = Math.max(...ns.map((n) => n.x + n.w)) + pad - bx,
-      bh = Math.max(...ns.map((n) => n.y + n.h)) + pad - by;
-    const vx = bx * c.zoom + c.x,
-      vy = by * c.zoom + c.y,
-      vw = bw * c.zoom,
-      vh = bh * c.zoom;
-    svg.setAttribute("viewBox", `${vx} ${vy} ${vw} ${vh}`);
-    svg.setAttribute("width", vw);
-    svg.setAttribute("height", vh);
-    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-    if (transparent) {
-      svg.querySelectorAll("[data-fullscreen]").forEach((r) => r.remove());
-    } else {
-      svg.querySelectorAll("[data-fullscreen]").forEach((r) => {
-        r.setAttribute("x", vx);
-        r.setAttribute("y", vy);
-        r.setAttribute("width", vw);
-        r.setAttribute("height", vh);
-      });
-    }
-    return { str: new XMLSerializer().serializeToString(svg), w: vw, h: vh };
+    if (!ns || !ns.length) return null;
+    return exportDiagramToSvg({
+      nodes: ns,
+      edges: edgesRef.current,
+      theme,
+      transparent,
+      padding,
+    });
   }
 
   const exportSVG = (options = {}) => {

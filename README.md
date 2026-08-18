@@ -27,10 +27,13 @@ A visual flowchart and diagram editor built with React and Vite. Design diagrams
 - Clickable and repositionable edge labels with custom background styling.
 - Directional arrowheads (start and end arrows) and dashed line styles.
 
-### Transparent SVG & PNG Export
-- Transparent and solid vector SVG exports.
+### Minimal, Semantic & Themeable SVG Export
+- Pure, minimal standalone vector SVG generation without editor bloat or camera artifacts.
+- Semantic CSS classes (`.fs-node`, `.fs-edge-path`, `.fs-node-text`, `.fs-group`) and CSS custom properties (`--fs-bg`, `--node-fill`, `--node-stroke`, `--fs-font`).
+- 100% themeable and restylable via external CSS when imported or embedded in web apps, documentation, or design tools, while retaining full presentation attribute fallbacks.
+- Transparent and solid background options.
 - High-resolution raster PNG exports with customizable scaling (1x Standard, 2x Retina, 3x Ultra HD).
-- Direct clipboard copy support for both vector SVG code and PNG image data.
+- Direct clipboard copy support for both clean vector SVG code and PNG image data.
 - Complete document state save and restore via JSON.
 
 ### Productivity Tools

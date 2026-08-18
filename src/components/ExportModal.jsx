@@ -529,17 +529,17 @@ export default function ExportModal({
                     style={{
                       fontSize: 11,
                       fontWeight: 600,
-                      color: "var(--muted)",
-                      background: "rgba(148, 163, 184, 0.12)",
+                      color: "var(--accent)",
+                      background: "var(--accent-light)",
                       padding: "1px 7px",
                       borderRadius: 6,
                     }}
                   >
-                    Vector
+                    Themeable CSS
                   </span>
                 </div>
                 <div style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.4 }}>
-                  Scalable vector graphics file for crisp resolution at any scale and web inclusion.
+                  Minimal, semantic vector graphics with CSS classes (<code>.fs-node</code>, <code>.fs-edge-path</code>) and CSS custom properties (<code>--fs-bg</code>, <code>--node-fill</code>). Seamlessly override styles or colors when imported into your website, apps, or design tools.
                 </div>
               </div>
             </div>
