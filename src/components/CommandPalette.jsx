@@ -67,6 +67,7 @@ export default function CommandPalette({
   onToggleGrid,
   onToggleTheme,
   onSetTheme,
+  onHarmonizeDiagram,
   onOpenExport,
   onExportSVG,
   onExportPNG,
@@ -146,6 +147,17 @@ export default function CommandPalette({
       icon: THEME_ICONS[t],
       run: () => onSetTheme?.(t),
     })),
+    ...(onHarmonizeDiagram
+      ? [
+          {
+            id: "harmonize-theme",
+            category: "Appearance",
+            title: `Harmonize All Diagram Colors to ${THEME_LABELS[theme]} Palette`,
+            icon: Sparkles,
+            run: onHarmonizeDiagram,
+          },
+        ]
+      : []),
 
     // File & Export
     { id: "export-modal", category: "File", title: "Export Diagram (Customize SVG / PNG / JSON)", icon: Download, run: onOpenExport },

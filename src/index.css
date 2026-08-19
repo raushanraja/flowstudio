@@ -86,7 +86,7 @@ textarea {
   border-color: var(--accent);
   color: var(--accent);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 4px 12px var(--accent-glow, rgba(99, 102, 241, 0.15));
 }
 
 .fs-btn:active {
@@ -98,7 +98,7 @@ textarea {
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 12px var(--accent-glow, rgba(99, 102, 241, 0.2));
 }
 
 .fs-btn-ghost {
@@ -177,7 +177,7 @@ textarea {
   color: var(--accent);
   background: var(--accent-light);
   transform: scale(1.08);
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 4px 14px var(--accent-glow, rgba(99, 102, 241, 0.2));
 }
 
 .fs-palbtn:active {

@@ -11,6 +11,7 @@ export const THEMES = {
     muted: "#64748b",
     accent: "#6366f1", // Indigo 500
     accentLight: "#e0e7ff",
+    accentGlow: "rgba(99, 102, 241, 0.22)",
     handle: "#ffffff",
     edge: "#94a3b8",
     shadow: "0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04)",
@@ -27,6 +28,7 @@ export const THEMES = {
     muted: "#94a3b8",
     accent: "#818cf8", // Indigo 400
     accentLight: "#1e1b4b",
+    accentGlow: "rgba(129, 140, 248, 0.25)",
     handle: "#0f172a",
     edge: "#64748b",
     shadow: "0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3)",
@@ -43,6 +45,7 @@ export const THEMES = {
     muted: "#9c9484",
     accent: "#E58D70", // --COLOR-ACCENT
     accentLight: "#3a2620",
+    accentGlow: "rgba(229, 141, 112, 0.28)",
     handle: "#1E1E1D",
     edge: "#9ca3af",
     success: "#8BA86D", // --COLOR-SUCCESS
@@ -176,6 +179,47 @@ export const GROUP_STYLES = {
   dark: { fill: "rgba(255,255,255,.04)", stroke: "#52525b" },
   clay: { fill: "rgba(227,218,204,.06)", stroke: "#3a3835" },
 };
+
+/**
+ * Harmonize nodes to match the target theme's palette
+ */
+export function rethemeDiagram(nodes, targetTheme = "light") {
+  const pal = PALETTES[targetTheme] || PALETTES.light;
+  const gStyle = GROUP_STYLES[targetTheme] || GROUP_STYLES.light;
+  const T = THEMES[targetTheme] || THEMES.light;
+
+  let regularIdx = 0;
+  return nodes.map((n) => {
+    if (n.type === "group") {
+      return {
+        ...n,
+        fill: gStyle.fill,
+        stroke: gStyle.stroke,
+        textColor: T.text,
+      };
+    }
+    const c = pal[regularIdx % pal.length];
+    regularIdx++;
+    return {
+      ...n,
+      fill: c.fill,
+      stroke: c.stroke,
+      textColor: c.text || n.textColor || c.stroke,
+    };
+  });
+}
+
+/**
+ * Harmonize edges to match the target theme
+ */
+export function rethemeEdges(edges, targetTheme = "light") {
+  const T = THEMES[targetTheme] || THEMES.light;
+  const defaultEdgeColors = ["#94a3b8", "#64748b", "#9ca3af"];
+  return edges.map((e) => ({
+    ...e,
+    stroke: defaultEdgeColors.includes(e.stroke) ? T.edge : e.stroke,
+  }));
+}
 
 /** Resolve a preset's stroke for the active theme */
 export const presetStroke = (p, theme) => {

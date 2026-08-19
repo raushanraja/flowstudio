@@ -14,9 +14,13 @@ import {
   Unlink,
   X,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import {
   SHAPE_DEFS,
+  THEMES,
+  THEME_ORDER,
+  THEME_LABELS,
   presetFill,
   presetText,
   presetStroke,
@@ -34,46 +38,47 @@ const ALIGN_BTNS = [
 ];
 
 const DISTRIBUTE_BTNS = [
-  ["distribute-h", AlignHorizontalSpaceBetween, "Distribute horizontally"],
-  ["distribute-v", AlignVerticalSpaceBetween, "Distribute vertically"],
+  ["distribute-h", AlignHorizontalSpaceBetween, "Distribute horizontally (equal gaps)"],
+  ["distribute-v", AlignVerticalSpaceBetween, "Distribute vertically (equal gaps)"],
 ];
 
 function ColorField({ label, value, onChange, allowTransparent = false }) {
   const hex = colorToHex(value);
-  const isTransparent = value === "transparent" || !value;
-
   return (
     <div className="fs-lbl">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span>{label}</span>
-        {allowTransparent && (
-          <button
-            type="button"
-            className={`fs-btn-ghost ${isTransparent ? "on" : ""}`}
-            style={{ fontSize: 10, padding: "1px 6px", height: 20 }}
-            onClick={() => onChange(isTransparent ? "#6366f1" : "transparent")}
-          >
-            {isTransparent ? "Make Solid" : "Clear Fill"}
-          </button>
-        )}
-      </div>
+      {label}
       <div className="fs-color-row">
-        <div
+        <label
           className="fs-color-swatch-trigger"
-          style={{
-            background: isTransparent
-              ? "repeating-conic-gradient(#cbd5e1 0% 25%, #ffffff 0% 50%) 50% / 10px 10px"
-              : value || hex,
-          }}
-          title="Click color swatch to pick"
+          style={{ background: value === "transparent" ? "none" : value }}
+          title="Pick custom color"
         >
           <input
             type="color"
             value={hex}
             onChange={(e) => onChange(e.target.value)}
           />
-        </div>
+        </label>
+        {allowTransparent && (
+          <button
+            type="button"
+            className="fs-mini"
+            style={{
+              flex: "0 0 auto",
+              padding: "0 8px",
+              fontSize: 10,
+              fontWeight: 600,
+              background: value === "transparent" ? "var(--accent-light)" : "transparent",
+              color: value === "transparent" ? "var(--accent)" : "var(--muted)",
+            }}
+            onClick={() => onChange("transparent")}
+            title="Set transparent"
+          >
+            None
+          </button>
+        )}
         <input
+          type="text"
           className="fs-inp"
           style={{ flex: 1 }}
           value={value || ""}
@@ -87,6 +92,8 @@ function ColorField({ label, value, onChange, allowTransparent = false }) {
 
 export default function PropertiesPanel({
   theme,
+  nodes = [],
+  edges = [],
   selEdge,
   single,
   selectedCount,
@@ -98,6 +105,9 @@ export default function PropertiesPanel({
   deleteConnections,
   duplicate,
   onAlign,
+  onSetTheme,
+  onHarmonizeDiagram,
+  onHarmonizeSelection,
   onClose,
 }) {
   const isSingleNode = selectedCount === 1 && selectedEdges === 0 && !!single;
@@ -677,7 +687,21 @@ export default function PropertiesPanel({
 
           {/* Preset Color Swatches */}
           <div className="fs-lbl">
-            Preset Palette (All Selected Nodes)
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>Preset Palette (All Selected)</span>
+              {onHarmonizeSelection && (
+                <button
+                  type="button"
+                  className="fs-btn-ghost"
+                  onClick={onHarmonizeSelection}
+                  style={{ fontSize: 10, padding: "2px 7px", height: 20, gap: 4 }}
+                  title={`Distribute ${THEME_LABELS[theme]} theme colors across selected nodes`}
+                >
+                  <Sparkles size={11} style={{ color: "var(--accent)" }} />
+                  Harmonize
+                </button>
+              )}
+            </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
               {presets.map((p) => {
                 const stroke = presetStroke(p, theme);
@@ -932,24 +956,164 @@ export default function PropertiesPanel({
         </>
       )}
 
-      {/* Empty State */}
+      {/* Empty State / Canvas Overview */}
       {!selEdge && selectedCount === 0 && selectedEdges === 0 && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            color: "var(--muted)",
-            fontSize: 11,
-            lineHeight: 1.5,
-          }}
-        >
-          <div style={{ fontWeight: 700, color: "var(--text)" }}>Quick Tips</div>
-          <div>• Select a shape from the left dock to add to canvas.</div>
-          <div>• Hover a node and drag round ports to create connections.</div>
-          <div>• Press <b>Ctrl+K</b> to open the Command Palette.</div>
-          <div>• Double-click any node to quickly edit its text.</div>
-          <div>• Drag canvas or hold Space/Alt to pan freely.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Theme & Palette Section */}
+          <div>
+            <div className="fs-lbl" style={{ marginBottom: 6 }}>
+              Canvas Theme
+            </div>
+            <div
+              style={{
+                display: "flex",
+                background: "var(--panel-solid)",
+                padding: 3,
+                borderRadius: 10,
+                border: "1px solid var(--border)",
+                gap: 2,
+              }}
+            >
+              {THEME_ORDER.map((t) => {
+                const isAct = theme === t;
+                const tBg = THEMES[t]?.bg || "#000";
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => onSetTheme?.(t)}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      padding: "6px 4px",
+                      border: "none",
+                      borderRadius: 7,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      background: isAct ? "var(--accent-light)" : "transparent",
+                      color: isAct ? "var(--accent)" : "var(--muted)",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: tBg,
+                        border: "1px solid rgba(255,255,255,0.35)",
+                        display: "inline-block",
+                      }}
+                    />
+                    {THEME_LABELS[t]}
+                  </button>
+                );
+              })}
+            </div>
+
+            {onHarmonizeDiagram && (
+              <button
+                type="button"
+                className="fs-btn"
+                onClick={onHarmonizeDiagram}
+                style={{
+                  width: "100%",
+                  marginTop: 8,
+                  padding: "6px 10px",
+                  borderRadius: 10,
+                  gap: 6,
+                  fontSize: 11,
+                }}
+                title={`Harmonize all node and group colors to the active ${THEME_LABELS[theme]} palette`}
+              >
+                <Sparkles size={13} style={{ color: "var(--accent)" }} />
+                Harmonize Diagram Colors
+              </button>
+            )}
+          </div>
+
+          {/* Diagram Stats */}
+          <div>
+            <div className="fs-lbl" style={{ marginBottom: 6 }}>
+              Diagram Overview
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 6,
+              }}
+            >
+              <div
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 9,
+                  background: "rgba(148, 163, 184, 0.08)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <div style={{ fontSize: 10, color: "var(--muted)" }}>Nodes</div>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>
+                  {nodes.filter((n) => n.type !== "group").length}
+                </div>
+              </div>
+              <div
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 9,
+                  background: "rgba(148, 163, 184, 0.08)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <div style={{ fontSize: 10, color: "var(--muted)" }}>Connections</div>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>{edges.length}</div>
+              </div>
+              {nodes.some((n) => n.type === "group") && (
+                <div
+                  style={{
+                    gridColumn: "span 2",
+                    padding: "6px 10px",
+                    borderRadius: 9,
+                    background: "rgba(148, 163, 184, 0.08)",
+                    border: "1px solid var(--border)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ fontSize: 10, color: "var(--muted)" }}>Group Frames</span>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>
+                    {nodes.filter((n) => n.type === "group").length}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Shortcuts */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              color: "var(--muted)",
+              fontSize: 11,
+              lineHeight: 1.5,
+              paddingTop: 6,
+              borderTop: "1px solid var(--border)",
+            }}
+          >
+            <div style={{ fontWeight: 700, color: "var(--text)" }}>Quick Shortcuts</div>
+            <div>• <b>Space / H</b>: Pan canvas freely</div>
+            <div>• <b>V</b>: Select &amp; box marquee</div>
+            <div>• <b>Ctrl+K / ⌘K</b>: Command palette</div>
+            <div>• <b>Double-click</b>: Quick-edit text</div>
+            <div>• <b>Shift+Click</b>: Multi-select</div>
+          </div>
         </div>
       )}
     </div>

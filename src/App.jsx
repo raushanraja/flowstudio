@@ -5,6 +5,8 @@ import {
   GROUP_STYLES,
   nextTheme,
   isTheme,
+  rethemeDiagram,
+  rethemeEdges,
 } from "./lib/theme.js";
 import { normalizeDiagram } from "./lib/diagram.js";
 import { sampleDiagram } from "./lib/sample.js";
@@ -1472,6 +1474,45 @@ export default function App() {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
+  /* ---------- theme harmonization ---------- */
+  const harmonizeDiagram = (targetTheme = theme) => {
+    pushUndo({ nodes, edges });
+    setNodes((curr) => rethemeDiagram(curr, targetTheme));
+    setEdges((curr) => rethemeEdges(curr, targetTheme));
+  };
+
+  const harmonizeSelection = (targetTheme = theme) => {
+    if (!sel.nodes.length) return;
+    pushUndo({ nodes, edges });
+    const pal = PALETTES[targetTheme] || PALETTES.light;
+    const gStyle = GROUP_STYLES[targetTheme] || GROUP_STYLES.light;
+    const targetT = THEMES[targetTheme] || THEMES.light;
+    const selSet = new Set(sel.nodes);
+
+    setNodes((curr) => {
+      let regIdx = 0;
+      return curr.map((n) => {
+        if (!selSet.has(n.id)) return n;
+        if (n.type === "group") {
+          return {
+            ...n,
+            fill: gStyle.fill,
+            stroke: gStyle.stroke,
+            textColor: targetT.text,
+          };
+        }
+        const c = pal[regIdx % pal.length];
+        regIdx++;
+        return {
+          ...n,
+          fill: c.fill,
+          stroke: c.stroke,
+          textColor: c.text || n.textColor || c.stroke,
+        };
+      });
+    });
+  };
+
   /* ---------- import / export ---------- */
   const save = (blob, name) => {
     const a = document.createElement("a");
@@ -1480,40 +1521,47 @@ export default function App() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 500);
   };
+
   function buildExportSvg(options = {}) {
-    const { transparent = false, padding = 40 } =
-      typeof options === "boolean" ? { transparent: options } : options;
+    const {
+      transparent = false,
+      padding = 40,
+      theme: optTheme = theme,
+    } = typeof options === "boolean" ? { transparent: options } : options;
     const ns = nodesRef.current;
     if (!ns || !ns.length) return null;
     return exportDiagramToSvg({
       nodes: ns,
       edges: edgesRef.current,
-      theme,
+      theme: optTheme,
       transparent,
       padding,
     });
   }
 
   const exportSVG = (options = {}) => {
-    const { transparent = false } =
+    const { transparent = false, theme: optTheme = theme } =
       typeof options === "boolean" ? { transparent: options } : options;
-    const b = buildExportSvg({ transparent });
+    const b = buildExportSvg({ transparent, theme: optTheme });
     if (!b) {
       alert("Canvas is empty. Add some nodes before exporting.");
       return;
     }
-    const filename = transparent ? "flowstudio-transparent.svg" : "flowstudio.svg";
+    const filename = transparent
+      ? `flowstudio-${optTheme}-transparent.svg`
+      : `flowstudio-${optTheme}.svg`;
     save(new Blob([b.str], { type: "image/svg+xml;charset=utf-8" }), filename);
   };
 
   const exportPNG = (options = {}) => {
-    const { transparent = false, scale = 2 } =
+    const { transparent = false, scale = 2, theme: optTheme = theme } =
       typeof options === "boolean" ? { transparent: options } : options;
-    const b = buildExportSvg({ transparent });
+    const b = buildExportSvg({ transparent, theme: optTheme });
     if (!b) {
       alert("Canvas is empty. Add some nodes before exporting.");
       return;
     }
+    const expT = THEMES[optTheme] || T;
     const img = new Image();
     const svgBlob = new Blob([b.str], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);
@@ -1523,13 +1571,15 @@ export default function App() {
       canvas.height = Math.round(b.h * scale);
       const ctx = canvas.getContext("2d");
       if (!transparent) {
-        ctx.fillStyle = T.bg;
+        ctx.fillStyle = expT.bg;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob((bl) => {
         if (bl) {
-          const filename = transparent ? "flowstudio-transparent.png" : "flowstudio.png";
+          const filename = transparent
+            ? `flowstudio-${optTheme}-transparent.png`
+            : `flowstudio-${optTheme}.png`;
           save(bl, filename);
         }
       }, "image/png");
@@ -1543,13 +1593,14 @@ export default function App() {
   };
 
   const copyPNGToClipboard = async (options = {}) => {
-    const { transparent = false, scale = 2 } =
+    const { transparent = false, scale = 2, theme: optTheme = theme } =
       typeof options === "boolean" ? { transparent: options } : options;
-    const b = buildExportSvg({ transparent });
+    const b = buildExportSvg({ transparent, theme: optTheme });
     if (!b) {
       alert("Canvas is empty. Add some nodes before exporting.");
       return false;
     }
+    const expT = THEMES[optTheme] || T;
 
     const renderBlob = () =>
       new Promise((resolve, reject) => {
@@ -1563,7 +1614,7 @@ export default function App() {
             canvas.height = Math.round(b.h * scale);
             const ctx = canvas.getContext("2d");
             if (!transparent) {
-              ctx.fillStyle = T.bg;
+              ctx.fillStyle = expT.bg;
               ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -1646,9 +1697,9 @@ export default function App() {
   }
 
   const copySVGToClipboard = async (options = {}) => {
-    const { transparent = false } =
+    const { transparent = false, theme: optTheme = theme } =
       typeof options === "boolean" ? { transparent: options } : options;
-    const b = buildExportSvg({ transparent });
+    const b = buildExportSvg({ transparent, theme: optTheme });
     if (!b) {
       alert("Canvas is empty. Add some nodes before exporting.");
       return false;
@@ -1776,6 +1827,7 @@ export default function App() {
         "--muted": T.muted,
         "--accent": T.accent,
         "--accent-light": T.accentLight,
+        "--accent-glow": T.accentGlow || "rgba(99, 102, 241, 0.2)",
         "--shadow": T.shadow,
       }}
     >
@@ -1928,6 +1980,8 @@ export default function App() {
       {!simMode && isInspectorOpen && (
         <PropertiesPanel
           theme={theme}
+          nodes={nodes}
+          edges={edges}
           selEdge={selEdge}
           single={single}
           selectedCount={sel.nodes.length}
@@ -1939,6 +1993,9 @@ export default function App() {
           deleteConnections={deleteConnections}
           duplicate={duplicate}
           onAlign={alignSel}
+          onSetTheme={setTheme}
+          onHarmonizeDiagram={() => harmonizeDiagram(theme)}
+          onHarmonizeSelection={() => harmonizeSelection(theme)}
           onClose={() => setIsInspectorOpen(false)}
         />
       )}
@@ -1967,6 +2024,7 @@ export default function App() {
         onToggleGrid={() => setShowGrid((s) => !s)}
         onToggleTheme={() => setTheme(nextTheme(theme))}
         onSetTheme={setTheme}
+        onHarmonizeDiagram={() => harmonizeDiagram(theme)}
         onOpenExport={() => {
           setIsCmdPaletteOpen(false);
           setIsExportModalOpen(true);

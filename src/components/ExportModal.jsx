@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   FileCode,
@@ -9,8 +9,9 @@ import {
   Check,
   AlertCircle,
   Loader2,
+  Palette,
 } from "lucide-react";
-import { THEMES } from "../lib/theme.js";
+import { THEMES, THEME_ORDER, THEME_LABELS } from "../lib/theme.js";
 
 export default function ExportModal({
   isOpen,
@@ -24,10 +25,17 @@ export default function ExportModal({
   onCopySVG,
 }) {
   const [transparent, setTransparent] = useState(false);
+  const [exportTheme, setExportTheme] = useState(theme);
   const [scale, setScale] = useState(2);
   const [copiedType, setCopiedType] = useState(null);
   const [isCopying, setIsCopying] = useState(null);
   const [copyError, setCopyError] = useState(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setExportTheme(theme);
+    }
+  }, [isOpen, theme]);
 
   if (!isOpen) return null;
 
@@ -36,14 +44,14 @@ export default function ExportModal({
     setIsCopying("png");
     setCopyError(null);
     try {
-      const ok = await onCopyPNG({ transparent, scale });
+      const ok = await onCopyPNG({ transparent, scale, theme: exportTheme });
       if (ok) {
         setCopiedType("png");
         setTimeout(() => setCopiedType(null), 2000);
       } else {
         // If binary PNG clipboard failed (e.g. over HTTP LAN), attempt SVG text copy fallback
         if (onCopySVG) {
-          const svgOk = await onCopySVG({ transparent });
+          const svgOk = await onCopySVG({ transparent, theme: exportTheme });
           if (svgOk) {
             setCopiedType("png_as_svg");
             setTimeout(() => setCopiedType(null), 3000);
@@ -66,7 +74,7 @@ export default function ExportModal({
     setIsCopying("svg");
     setCopyError(null);
     try {
-      const ok = await onCopySVG({ transparent });
+      const ok = await onCopySVG({ transparent, theme: exportTheme });
       if (ok) {
         setCopiedType("svg");
         setTimeout(() => setCopiedType(null), 2000);
@@ -137,12 +145,12 @@ export default function ExportModal({
           </button>
         </div>
 
-        {/* Options Bar: Background Transparency & PNG Scale */}
+        {/* Options Bar: Background Transparency, Theme Palette & PNG Scale */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 12,
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gap: 10,
             marginBottom: 18,
             padding: 12,
             borderRadius: 14,
@@ -171,7 +179,7 @@ export default function ExportModal({
                   fontWeight: 700,
                 }}
               >
-                {transparent ? "Transparent" : "Canvas Theme"}
+                {transparent ? "Transparent" : "Solid Canvas"}
               </span>
             </div>
             <div
@@ -209,7 +217,7 @@ export default function ExportModal({
                     height: 10,
                     borderRadius: "50%",
                     border: "1px solid rgba(255,255,255,0.4)",
-                    background: T?.bg || THEMES[theme]?.bg || THEMES.dark.bg,
+                    background: THEMES[exportTheme]?.bg || THEMES[theme]?.bg || "#000",
                     display: "inline-block",
                   }}
                 />
@@ -251,6 +259,82 @@ export default function ExportModal({
                 />
                 Transparent
               </button>
+            </div>
+          </div>
+
+          {/* Export Theme Selector */}
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--muted)",
+                marginBottom: 6,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>Export Theme</span>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: "var(--accent)",
+                  fontWeight: 700,
+                }}
+              >
+                {THEME_LABELS[exportTheme] || exportTheme}
+              </span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                background: "var(--panel-solid)",
+                padding: 3,
+                borderRadius: 10,
+                border: "1px solid var(--border)",
+                gap: 2,
+              }}
+            >
+              {THEME_ORDER.map((t) => {
+                const isSelected = exportTheme === t;
+                const tBg = THEMES[t]?.bg || "#000";
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setExportTheme(t)}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      padding: "6px 4px",
+                      border: "none",
+                      borderRadius: 7,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      background: isSelected ? "var(--accent-light)" : "transparent",
+                      color: isSelected ? "var(--accent)" : "var(--muted)",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: tBg,
+                        border: "1px solid rgba(255,255,255,0.35)",
+                        display: "inline-block",
+                      }}
+                    />
+                    {THEME_LABELS[t]}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -372,6 +456,18 @@ export default function ExportModal({
                     style={{
                       fontSize: 11,
                       fontWeight: 600,
+                      color: "var(--accent)",
+                      background: "var(--accent-light)",
+                      padding: "1px 7px",
+                      borderRadius: 6,
+                    }}
+                  >
+                    {THEME_LABELS[exportTheme]} Theme
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
                       color: "var(--muted)",
                       background: "rgba(148, 163, 184, 0.12)",
                       padding: "1px 7px",
@@ -456,7 +552,7 @@ export default function ExportModal({
                 type="button"
                 className="fs-btn on"
                 onClick={() => {
-                  onExportPNG({ transparent, scale });
+                  onExportPNG({ transparent, scale, theme: exportTheme });
                   onClose();
                 }}
                 style={{
@@ -524,6 +620,18 @@ export default function ExportModal({
                     }}
                   >
                     {transparent ? "Transparent" : "Solid"}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--accent)",
+                      background: "var(--accent-light)",
+                      padding: "1px 7px",
+                      borderRadius: 6,
+                    }}
+                  >
+                    {THEME_LABELS[exportTheme]} Theme
                   </span>
                   <span
                     style={{
@@ -608,7 +716,7 @@ export default function ExportModal({
                 type="button"
                 className="fs-btn on"
                 onClick={() => {
-                  onExportSVG({ transparent });
+                  onExportSVG({ transparent, theme: exportTheme });
                   onClose();
                 }}
                 style={{
