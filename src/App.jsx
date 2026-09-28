@@ -7,6 +7,7 @@ import {
   isTheme,
   isDarkTheme,
   getGroupStyle,
+  GROUP_STYLES,
   getPaletteForTheme,
   getContrast,
   getEffectiveTextColor,
@@ -1059,7 +1060,7 @@ export default function App() {
       by = Math.min(...chosen.map((n) => n.y)) - 24;
     const bw = Math.max(...chosen.map((n) => n.x + n.w)) + 24 - bx,
       bh = Math.max(...chosen.map((n) => n.y + n.h)) + 24 - by;
-    const gStyle = GROUP_STYLES[theme] || GROUP_STYLES.light;
+    const gStyle = getGroupStyle(theme);
     const g = {
       id: uid(),
       type: "group",
