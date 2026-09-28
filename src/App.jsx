@@ -2456,6 +2456,7 @@ export default function App() {
         onPlaybackChoose={onPlaybackChoose}
         simMode={simMode}
         playMode={playMode}
+        recording={recording}
         guidelines={guidelines}
         showMinimap={showMinimap}
         onToggleMinimap={() => setShowMinimap((v) => !v)}

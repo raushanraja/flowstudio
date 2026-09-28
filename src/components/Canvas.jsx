@@ -75,6 +75,7 @@ export default function Canvas({
   onPlaybackChoose,
   simMode,
   playMode,
+  recording = false,
   guidelines = [],
   showMinimap = false,
   onToggleMinimap,
@@ -518,6 +519,7 @@ export default function Canvas({
               T={T}
               onChoose={onPlaybackChoose}
               mode={playMode}
+              recording={recording}
             />
           )}
 

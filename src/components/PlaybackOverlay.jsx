@@ -24,6 +24,7 @@ export default function PlaybackOverlay({
   T = {},
   onChoose,
   mode = "run",
+  recording = false,
 }) {
   const s = playback?.snapshot() ?? null;
   const token = s?.tokens?.[0] ?? null;
@@ -35,15 +36,21 @@ export default function PlaybackOverlay({
     () => (activeEdge ? edgeGeom(activeEdge, byId) : null),
     [activeEdge, byId],
   );
+  const choicesNode =
+    (token?.edge && activeEdge && byId[activeEdge.to]) || activeNode;
+  // Hide the branch selector when the active scenario already pins this
+  // node's branch (running directly without a scenario pins nothing, so the
+  // selector still appears). Recording keeps the selector so clicks can
+  // update the scenario.
+  const configured = !!choicesNode && !!playback?.isConfigured?.(choicesNode.id);
+  const canPick = !configured || recording;
   // Run mode: options appear while awaiting a branch or paused at a node.
   // Demo mode: always available (during dwell and even mid-flight, where a
   // click queues the branch for the destination being reached).
   const choices =
-    s && !s.done && (s.awaiting || !playing || mode === "demo")
+    s && !s.done && canPick && (s.awaiting || !playing || mode === "demo")
       ? playback.choices()
       : [];
-  const choicesNode =
-    (token?.edge && activeEdge && byId[activeEdge.to]) || activeNode;
   const services = s?.services ?? NO_SERVICES;
   // Edges that belong to each service's component, for the marching "flow"
   // overlay that shows the service is continuously processing.

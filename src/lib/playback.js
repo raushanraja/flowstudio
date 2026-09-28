@@ -462,6 +462,11 @@ export function createPlayback({
       emit();
     },
 
+    // Whether the active scenario already pins a branch for this node.
+    isConfigured(nodeId) {
+      return !!pref[nodeId];
+    },
+
     // Branch options for the next departing node (the destination while the
     // token is traveling).
     choices() {
