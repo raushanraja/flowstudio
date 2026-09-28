@@ -343,8 +343,8 @@ export default function Canvas({
                   </g>
                 )}
 
-                {/* Background service indicator */}
-                {n.isService && (
+                {/* Background service indicator (playback draws its own) */}
+                {n.isService && !playback && (
                   <g pointerEvents="none" transform={`translate(${n.x + n.w - 2} ${n.y + 2})`}>
                     <circle r={9} fill={T.bg} stroke="#f59e0b" strokeWidth={2} />
                     <Repeat

@@ -219,49 +219,56 @@ export default function PlaybackOverlay({
           </g>
         );
       })}
-      {/* Breathing outline on a service's frame/group + a running chip. */}
+      {/* Service badge at each root's top-right corner: the corner sign
+          becomes a "running" chip while the simulation plays. */}
       {services.map((svc) => {
         const root = byId[svc.rootId];
         if (!root) return null;
-        const cx = root.x + root.w / 2;
-        const y = root.y - 28;
+        const bx = root.x + root.w - 2;
+        const by = root.y + 2;
+        if (!playing) {
+          return (
+            <g key={`root-${svc.id}`} pointerEvents="none">
+              <circle
+                cx={bx}
+                cy={by}
+                r={9}
+                fill={T?.bg || "#ffffff"}
+                stroke={SERVICE_COLOR}
+                strokeWidth={2}
+              />
+              <Repeat
+                x={bx - 6}
+                y={by - 6}
+                size={12}
+                color={SERVICE_COLOR}
+                strokeWidth={2.2}
+              />
+            </g>
+          );
+        }
         return (
           <g key={`root-${svc.id}`} pointerEvents="none">
-            {root.type === "group" && (
-              <g className="fs-svc-glow">
-                <NodeShape
-                  n={{
-                    ...root,
-                    fill: `${SERVICE_COLOR}0d`,
-                    stroke: SERVICE_COLOR,
-                    strokeWidth: 2.5,
-                    dashed: true,
-                  }}
-                />
-              </g>
-            )}
-            <g className="fs-svc-glow">
-              <rect
-                x={cx - 40}
-                y={y - 10}
-                width={80}
-                height={19}
-                rx={9.5}
-                fill={SERVICE_COLOR}
-              />
-              <Repeat x={cx - 35} y={y - 5} size={11} color="#ffffff" strokeWidth={2.4} />
-              <text
-                x={cx + 7}
-                y={y + 4}
-                textAnchor="middle"
-                fontSize={9.5}
-                fontWeight={700}
-                fontFamily="'JetBrains Mono', monospace"
-                fill="#ffffff"
-              >
-                running
-              </text>
-            </g>
+            <rect
+              x={bx - 40}
+              y={by - 9.5}
+              width={80}
+              height={19}
+              rx={9.5}
+              fill={SERVICE_COLOR}
+            />
+            <Repeat x={bx - 35} y={by - 5.5} size={11} color="#ffffff" strokeWidth={2.4} />
+            <text
+              x={bx + 7}
+              y={by + 4}
+              textAnchor="middle"
+              fontSize={9.5}
+              fontWeight={700}
+              fontFamily="'JetBrains Mono', monospace"
+              fill="#ffffff"
+            >
+              running
+            </text>
           </g>
         );
       })}
