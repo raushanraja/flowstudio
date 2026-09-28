@@ -397,6 +397,62 @@ export function edgeGeom(e, byId, temp) {
       mid: offsetMid(pathMid(pts)),
     };
   }
+  if (e.routing === "straight") {
+    const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+    const angStart = Math.atan2(p1.y - p2.y, p1.x - p2.x);
+    return {
+      d: `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`,
+      arrow: arrowPoints(p2, ang, L, W),
+      arrowStart: arrowPoints(p1, angStart, L, W),
+      mid: offsetMid({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }),
+    };
+  }
+
+  if (e.routing === "orthogonal") {
+    const fromSide =
+      e.fromPort ||
+      (p1.dx !== 0
+        ? p1.dx > 0
+          ? "right"
+          : "left"
+        : p1.dy > 0
+          ? "bottom"
+          : "top");
+    const toSide =
+      e.toPort ||
+      (dx !== 0 ? (dx > 0 ? "right" : "left") : dy > 0 ? "bottom" : "top");
+    const isHoriz1 = fromSide === "left" || fromSide === "right";
+    const isHoriz2 = toSide === "left" || toSide === "right";
+
+    const pts = [p1];
+    if (isHoriz1 && isHoriz2) {
+      const midX = (p1.x + p2.x) / 2;
+      pts.push({ x: midX, y: p1.y });
+      pts.push({ x: midX, y: p2.y });
+    } else if (!isHoriz1 && !isHoriz2) {
+      const midY = (p1.y + p2.y) / 2;
+      pts.push({ x: p1.x, y: midY });
+      pts.push({ x: p2.x, y: midY });
+    } else if (isHoriz1 && !isHoriz2) {
+      pts.push({ x: p2.x, y: p1.y });
+    } else {
+      pts.push({ x: p1.x, y: p2.y });
+    }
+    pts.push(p2);
+
+    const d = mermaidRoundedPath(pts, 8);
+    const last = pts[pts.length - 2];
+    const ang = Math.atan2(p2.y - last.y, p2.x - last.x);
+    const second = pts[1];
+    const angStart = Math.atan2(p1.y - second.y, p1.x - second.x);
+    return {
+      d: d || `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`,
+      arrow: arrowPoints(p2, ang, L, W),
+      arrowStart: arrowPoints(p1, angStart, L, W),
+      mid: offsetMid(pathMid(pts)),
+    };
+  }
+
   const k = clamp(Math.hypot(p2.x - p1.x, p2.y - p1.y) * 0.4, 30, 150);
   const c1 = { x: p1.x + p1.dx * k, y: p1.y + p1.dy * k };
   const c2 = { x: p2.x + dx * k, y: p2.y + dy * k };

@@ -37,6 +37,8 @@ import { layoutDiagram } from "./lib/layout.js";
 import { exportMermaid } from "./lib/exportMermaid.js";
 import PlayBar from "./components/PlayBar.jsx";
 import ScenariosPanel from "./components/ScenariosPanel.jsx";
+import FloatingHUD from "./components/FloatingHUD.jsx";
+import CanvasSearch from "./components/CanvasSearch.jsx";
 
 const INITIAL = sampleDiagram();
 const STORAGE_KEY = "fs-document";
@@ -115,6 +117,7 @@ export default function App() {
   const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const prevSelRef = useRef({ nodes: [], edges: [] });
 
   useEffect(() => {
@@ -1256,6 +1259,86 @@ export default function App() {
     setNodes(res.nodes);
     setEdges(res.edges);
   }
+  const onQuickConnect = (node, side) => {
+    pushUndo(serialize());
+    const [w, h] = [node.w, node.h];
+    const GAP = 80;
+    let destX = node.x;
+    let destY = node.y;
+    let toPort = "left";
+
+    if (side === "right") {
+      destX = node.x + node.w + GAP;
+      toPort = "left";
+    } else if (side === "left") {
+      destX = node.x - w - GAP;
+      toPort = "right";
+    } else if (side === "bottom") {
+      destY = node.y + node.h + GAP;
+      toPort = "top";
+    } else if (side === "top") {
+      destY = node.y - h - GAP;
+      toPort = "bottom";
+    }
+
+    const newNode = {
+      ...node,
+      id: uid(),
+      x: sn(destX),
+      y: sn(destY),
+      text: "New Node",
+      badge: "",
+      parentId: node.parentId || null,
+    };
+
+    const newEdge = {
+      id: uid("e"),
+      from: node.id,
+      fromPort: side,
+      to: newNode.id,
+      toPort,
+      stroke: T.edge,
+      strokeWidth: 2,
+      dashed: false,
+      routing: "curved",
+    };
+
+    setNodes((ns) => [...ns, newNode]);
+    setEdges((es) => [...es, newEdge]);
+    setSel({ nodes: [newNode.id], edges: [] });
+    setEditing({ id: newNode.id, value: "" });
+  };
+
+  const morphShape = (newType) => {
+    const ids = selRef.current.nodes;
+    if (!ids.length) return;
+    pushUndo(serialize(), "morph_shape");
+    setNodes((ns) =>
+      ns.map((n) =>
+        ids.includes(n.id) && n.type !== "group" ? { ...n, type: newType } : n
+      )
+    );
+  };
+
+  const focusNode = (nodeId) => {
+    const node = nodesRef.current.find((n) => n.id === nodeId);
+    if (!node) return;
+    setSel({ nodes: [node.id], edges: [] });
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (r) {
+      setCam((c) => ({
+        ...c,
+        x: Math.round(r.width / 2 - (node.x + node.w / 2) * c.zoom),
+        y: Math.round(r.height / 2 - (node.y + node.h / 2) * c.zoom),
+      }));
+    }
+  };
+
+  const focusEdge = (edgeId) => {
+    const edge = edgesRef.current.find((e) => e.id === edgeId);
+    if (!edge) return;
+    setSel({ nodes: [], edges: [edge.id] });
+  };
   const patchSelNodes = (patch, key) => {
     pushUndo(serialize(), key || "__patch");
     setNodes((ns) =>
@@ -1533,6 +1616,7 @@ export default function App() {
     nudgeSel,
     addNode,
     escape: () => {
+      setIsSearchOpen(false);
       if (simModeRef.current) {
         setSimMode(false);
         return;
@@ -1623,6 +1707,13 @@ export default function App() {
       if (mod && k === "k") {
         e.preventDefault();
         setIsCmdPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      // Cmd+F Canvas Search
+      if (mod && k === "f") {
+        e.preventDefault();
+        setIsSearchOpen(true);
         return;
       }
 
@@ -2158,6 +2249,7 @@ export default function App() {
         onNodeHover={onNodeHover}
         onNodeLeave={onNodeLeave}
         onPortMouseDown={onPortMouseDown}
+        onQuickConnect={onQuickConnect}
         onResizeMouseDown={onResizeMouseDown}
         onEdgeMouseDown={onEdgeMouseDown}
         onLabelMouseDown={onLabelMouseDown}
@@ -2200,6 +2292,32 @@ export default function App() {
         onPlaybackChoose={onPlaybackChoose}
         simMode={simMode}
         playMode={playMode}
+      />
+
+      {/* Floating Context Toolbar over Selection */}
+      <FloatingHUD
+        sel={sel}
+        nodes={nodes}
+        edges={edges}
+        cam={cam}
+        theme={theme}
+        simMode={simMode}
+        onPatchNodes={patchSelNodes}
+        onPatchEdge={patchEdge}
+        onMorphShape={morphShape}
+        onDuplicate={duplicate}
+        onDelete={deleteSelection}
+        onGroup={groupSel}
+      />
+
+      {/* In-Canvas Search Modal */}
+      <CanvasSearch
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        nodes={nodes}
+        edges={edges}
+        onFocusNode={focusNode}
+        onFocusEdge={focusEdge}
       />
 
       {/* Playback Controls */}
@@ -2316,6 +2434,10 @@ export default function App() {
         onSetTheme={setTheme}
         onHarmonizeDiagram={() => harmonizeDiagram(theme)}
         onAutoLayout={handleAutoLayout}
+        onOpenSearch={() => {
+          setIsCmdPaletteOpen(false);
+          setIsSearchOpen(true);
+        }}
         onOpenExport={() => {
           setIsCmdPaletteOpen(false);
           setIsExportModalOpen(true);

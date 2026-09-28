@@ -44,6 +44,7 @@ export default function Canvas({
   onNodeHover,
   onNodeLeave,
   onPortMouseDown,
+  onQuickConnect,
   onResizeMouseDown,
   onEdgeMouseDown,
   onLabelMouseDown,
@@ -360,6 +361,90 @@ export default function Canvas({
                         style={{ cursor: "crosshair" }}
                         onMouseDown={(e) => onPortMouseDown(e, n, side)}
                       />
+                    );
+                  })}
+
+                {/* Quick-Connect + Handles */}
+                {isSel && !simMode && n.type !== "group" &&
+                  ["top", "right", "bottom", "left"].map((side) => {
+                    const p = portPos(n, side);
+                    const qDist = 18 / z;
+                    const qx =
+                      side === "left"
+                        ? p.x - qDist
+                        : side === "right"
+                        ? p.x + qDist
+                        : p.x;
+                    const qy =
+                      side === "top"
+                        ? p.y - qDist
+                        : side === "bottom"
+                        ? p.y + qDist
+                        : p.y;
+                    const r = 7 / z;
+                    const iconLen = 3.2 / z;
+                    return (
+                      <g
+                        key={`qc-${side}`}
+                        data-overlay
+                        style={{ cursor: "pointer" }}
+                        title={`Quick-connect ${side}`}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          const startX = e.clientX;
+                          const startY = e.clientY;
+                          let isDrag = false;
+                          const mm = (me) => {
+                            if (
+                              Math.hypot(
+                                me.clientX - startX,
+                                me.clientY - startY
+                              ) > 3
+                            ) {
+                              isDrag = true;
+                              window.removeEventListener("mousemove", mm);
+                              window.removeEventListener("mouseup", mu);
+                              onPortMouseDown(e, n, side);
+                            }
+                          };
+                          const mu = () => {
+                            window.removeEventListener("mousemove", mm);
+                            window.removeEventListener("mouseup", mu);
+                            if (!isDrag && onQuickConnect) {
+                              onQuickConnect(n, side);
+                            }
+                          };
+                          window.addEventListener("mousemove", mm);
+                          window.addEventListener("mouseup", mu);
+                        }}
+                      >
+                        <circle
+                          cx={qx}
+                          cy={qy}
+                          r={r}
+                          fill={T.panelSolid}
+                          stroke={T.accent}
+                          strokeWidth={1.5 / z}
+                        />
+                        <line
+                          x1={qx - iconLen}
+                          y1={qy}
+                          x2={qx + iconLen}
+                          y2={qy}
+                          stroke={T.accent}
+                          strokeWidth={1.5 / z}
+                          strokeLinecap="round"
+                        />
+                        <line
+                          x1={qx}
+                          y1={qy - iconLen}
+                          x2={qx}
+                          y2={qy + iconLen}
+                          stroke={T.accent}
+                          strokeWidth={1.5 / z}
+                          strokeLinecap="round"
+                        />
+                      </g>
                     );
                   })}
 

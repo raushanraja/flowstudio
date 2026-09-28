@@ -74,6 +74,7 @@ export default function CommandPalette({
   onSetTheme,
   onHarmonizeDiagram,
   onAutoLayout,
+  onOpenSearch,
   onOpenExport,
   onExportSVG,
   onExportPNG,
@@ -144,6 +145,7 @@ export default function CommandPalette({
     { id: "distribute-v", category: "Align", title: "Distribute Vertically", icon: AlignVerticalSpaceBetween, run: () => onAlign("distribute-v") },
 
     // View & Canvas
+    { id: "find-canvas", category: "Canvas", title: "Find in Diagram", icon: Search, shortcut: "Ctrl+F", run: onOpenSearch },
     { id: "fit", category: "Canvas", title: "Fit View to Contents", icon: Maximize2, run: onFit },
     { id: "zoom-in", category: "Canvas", title: "Zoom In", icon: ZoomIn, run: onZoomIn },
     { id: "zoom-out", category: "Canvas", title: "Zoom Out", icon: ZoomOut, run: onZoomOut },

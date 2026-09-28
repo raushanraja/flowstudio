@@ -18,6 +18,9 @@ import {
   Repeat,
   Workflow,
   Network,
+  Spline,
+  CornerDownRight,
+  Minus,
 } from "lucide-react";
 import {
   SHAPE_DEFS,
@@ -341,6 +344,42 @@ export default function PropertiesPanel({
             </div>
           </div>
 
+          {/* Connector Routing Style */}
+          <div className="fs-lbl">
+            Line Routing
+            <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+              {[
+                ["curved", Spline, "Curved"],
+                ["orthogonal", CornerDownRight, "Orthogonal"],
+                ["straight", Minus, "Straight"],
+              ].map(([mode, Icon, title]) => {
+                const currentRouting = selEdge.routing || "curved";
+                const isSelected = currentRouting === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`fs-btn-ghost ${isSelected ? "on" : ""}`}
+                    style={{
+                      flex: 1,
+                      padding: "5px 4px",
+                      fontSize: 11,
+                      gap: 4,
+                      justifyContent: "center",
+                      border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
+                      background: isSelected ? "var(--accent-light)" : "transparent",
+                      color: isSelected ? "var(--accent)" : "var(--text)",
+                    }}
+                    onClick={() => patchEdge({ routing: mode }, "routing_style")}
+                  >
+                    <Icon size={12} />
+                    {title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <label className="fs-lbl" style={{ flexDirection: "row", gap: 6, cursor: "pointer", alignItems: "center" }}>
             <input
               type="checkbox"
@@ -489,6 +528,36 @@ export default function PropertiesPanel({
                   onClick={() => patchEdge(patch, "arrow_style")}
                 >
                   {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Connector Routing Style (All Selected) */}
+          <div className="fs-lbl">
+            Line Routing (All Selected)
+            <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+              {[
+                ["curved", Spline, "Curved"],
+                ["orthogonal", CornerDownRight, "Orthogonal"],
+                ["straight", Minus, "Straight"],
+              ].map(([mode, Icon, title]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className="fs-btn-ghost"
+                  style={{
+                    flex: 1,
+                    padding: "5px 4px",
+                    fontSize: 11,
+                    gap: 4,
+                    justifyContent: "center",
+                    border: "1px solid var(--border)",
+                  }}
+                  onClick={() => patchEdge({ routing: mode }, "routing_style")}
+                >
+                  <Icon size={12} />
+                  {title}
                 </button>
               ))}
             </div>
