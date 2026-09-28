@@ -95,7 +95,7 @@ export default function TopBar({
           style={{ padding: "4px 10px", borderRadius: 999 }}
         >
           <MousePointer2 size={13} />
-          Select
+          Select <span style={{ opacity: 0.65, fontSize: 11 }}>(V)</span>
         </button>
         <button
           className={`fs-btn-ghost ${tool === "pan" ? "on" : ""}`}
@@ -104,7 +104,7 @@ export default function TopBar({
           style={{ padding: "4px 10px", borderRadius: 999 }}
         >
           <Hand size={13} />
-          Pan
+          Pan <span style={{ opacity: 0.65, fontSize: 11 }}>(H)</span>
         </button>
       </div>
 

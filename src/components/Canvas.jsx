@@ -663,13 +663,6 @@ export default function Canvas({
         </div>
       )}
 
-      {/* Floating Micro Shortcuts Bar (Bottom-Left) */}
-      {!simMode && (
-        <div className="fs-hint" style={{ borderRadius: 999, padding: "8px 16px" }}>
-          <span style={{ fontWeight: 700, color: "var(--text)" }}>FlowStudio: </span>
-          <span className="fs-kbd">⌘K</span> Commands · <span className="fs-kbd">V</span> Select · <span className="fs-kbd">H</span> Pan · <span className="fs-kbd">Shift</span> Multi · <span className="fs-kbd">Del</span> Delete
-        </div>
-      )}
     </div>
   );
 }
