@@ -1,6 +1,7 @@
 import { MONO } from "../lib/utils.js";
+import { getEffectiveTextColor } from "../lib/theme.js";
 
-export function NodeShape({ n }) {
+export function NodeShape({ n, T }) {
   const base = {
     fill: n.fill,
     stroke: n.stroke,
@@ -54,14 +55,15 @@ export function NodeShape({ n }) {
         </g>
       );
     }
-    case "group":
+    case "group": {
+      const textColor = getEffectiveTextColor(n, T);
       return (
         <g>
           <rect x={n.x} y={n.y} width={n.w} height={n.h} rx={14} {...base} />
           <text
             x={n.x + 14}
             y={n.y + 24}
-            fill={n.textColor}
+            fill={textColor}
             fontSize={n.fontSize}
             fontWeight={700}
             fontFamily={MONO}
@@ -71,6 +73,7 @@ export function NodeShape({ n }) {
           </text>
         </g>
       );
+    }
     case "text":
     default:
       return (
@@ -86,16 +89,17 @@ export function NodeShape({ n }) {
   }
 }
 
-export function NodeText({ n }) {
+export function NodeText({ n, T }) {
   const text = (n.text || "").trim();
   if (!text) return null;
   const lines = text.split("\n"),
     lh = n.fontSize * 1.25;
   const startY = n.y + n.h / 2 - ((lines.length - 1) * lh) / 2;
+  const textColor = getEffectiveTextColor(n, T);
   return (
     <text
       textAnchor="middle"
-      fill={n.textColor}
+      fill={textColor}
       fontSize={n.fontSize}
       fontFamily={MONO}
       pointerEvents="none"

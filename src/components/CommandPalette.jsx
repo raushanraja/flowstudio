@@ -40,9 +40,13 @@ import {
   THEME_ORDER,
   THEME_LABELS,
   nextTheme,
+  isDarkTheme,
 } from "../lib/theme.js";
 
-const THEME_ICONS = { light: Sun, dark: Moon, clay: Palette };
+const getThemeIcon = (t) => {
+  if (t === "clay") return Palette;
+  return isDarkTheme(t) ? Moon : Sun;
+};
 
 export default function CommandPalette({
   isOpen,
@@ -139,12 +143,12 @@ export default function CommandPalette({
     { id: "zoom-out", category: "Canvas", title: "Zoom Out", icon: ZoomOut, run: onZoomOut },
     { id: "toggle-snap", category: "Canvas", title: "Toggle Grid Snapping", icon: Magnet, run: onToggleSnap },
     { id: "toggle-grid", category: "Canvas", title: "Toggle Canvas Grid", icon: Grid, run: onToggleGrid },
-    { id: "toggle-theme", category: "Appearance", title: `Switch to ${THEME_LABELS[nextTheme(theme)]} Theme`, icon: THEME_ICONS[nextTheme(theme)], run: onToggleTheme },
+    { id: "toggle-theme", category: "Appearance", title: `Switch to ${THEME_LABELS[nextTheme(theme)] || nextTheme(theme)} Theme`, icon: getThemeIcon(nextTheme(theme)), run: onToggleTheme },
     ...THEME_ORDER.map((t) => ({
       id: `theme-${t}`,
       category: "Appearance",
-      title: `Use ${THEME_LABELS[t]} Theme${t === theme ? " (current)" : ""}`,
-      icon: THEME_ICONS[t],
+      title: `Use ${THEME_LABELS[t] || t} Theme${t === theme ? " (current)" : ""}`,
+      icon: getThemeIcon(t),
       run: () => onSetTheme?.(t),
     })),
     ...(onHarmonizeDiagram

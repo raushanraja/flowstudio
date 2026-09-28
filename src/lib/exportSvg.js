@@ -1,5 +1,5 @@
 import { edgeGeom } from "./geometry.js";
-import { THEMES } from "./theme.js";
+import { THEMES, getEffectiveTextColor, getEffectiveEdgeTextColor } from "./theme.js";
 import { MONO } from "./utils.js";
 
 /**
@@ -170,7 +170,8 @@ function renderNodeText(n) {
     )
     .join("");
 
-  return `<text class="fs-node-text" text-anchor="middle" fill="${n.textColor}" font-size="${fmt(fz)}" font-family="${MONO}">${tspans}</text>`;
+  const textColor = getEffectiveTextColor(n, T);
+  return `<text class="fs-node-text" text-anchor="middle" fill="${textColor}" font-size="${fmt(fz)}" font-family="${MONO}">${tspans}</text>`;
 }
 
 /**
@@ -188,7 +189,7 @@ function renderNodeBadge(n, T) {
 /**
  * Render a group node (frame)
  */
-function renderGroupNode(n) {
+function renderGroupNode(n, T) {
   const dashed = n.dashed ? ' stroke-dasharray="6 5"' : "";
   const sw = fmt(n.strokeWidth || 1.5);
   const x = fmt(n.x);
@@ -196,8 +197,9 @@ function renderGroupNode(n) {
   const w = fmt(n.w);
   const h = fmt(n.h);
   const fz = fmt(n.fontSize || 14);
+  const textColor = getEffectiveTextColor(n, T);
 
-  return `<g class="fs-group fs-group-${escapeXml(n.id)}" id="group-${escapeXml(n.id)}" data-node-id="${escapeXml(n.id)}" style="--group-fill:${n.fill}; --group-stroke:${n.stroke}; --group-text:${n.textColor};"><rect class="fs-group-box" x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="${n.fill}" stroke="${n.stroke}" stroke-width="${sw}"${dashed} /><text class="fs-group-label" x="${fmt(n.x + 14)}" y="${fmt(n.y + 24)}" fill="${n.textColor}" font-size="${fz}" font-weight="700" font-family="${MONO}">${escapeXml(n.text)}</text></g>`;
+  return `<g class="fs-group fs-group-${escapeXml(n.id)}" id="group-${escapeXml(n.id)}" data-node-id="${escapeXml(n.id)}" style="--group-fill:${n.fill}; --group-stroke:${n.stroke}; --group-text:${textColor};"><rect class="fs-group-box" x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="${n.fill}" stroke="${n.stroke}" stroke-width="${sw}"${dashed} /><text class="fs-group-label" x="${fmt(n.x + 14)}" y="${fmt(n.y + 24)}" fill="${textColor}" font-size="${fz}" font-weight="700" font-family="${MONO}">${escapeXml(n.text)}</text></g>`;
 }
 
 /**
@@ -220,6 +222,7 @@ function renderEdge(e, byId, T) {
     const ly = g.mid.y - fz - 6;
     const labelBg = e.labelBg !== "transparent" ? (e.labelBg || T.panelSolid || "#1E1E1D") : null;
     const border = T.border || "#333333";
+    const textColor = getEffectiveEdgeTextColor(e, labelBg, T);
 
     labelHtml = `<g class="fs-edge-label" style="--edge-label-bg:${labelBg || 'transparent'}; --edge-label-border:${border}; --edge-label-text:${textColor};">${labelBg ? `<rect class="fs-edge-label-box" x="${fmt(lx)}" y="${fmt(ly)}" width="${fmt(lw)}" height="${fmt(lh)}" rx="6" fill="${labelBg}" stroke="${border}" stroke-width="1" opacity="0.95" />` : ""}<text class="fs-edge-label-text" x="${fmt(g.mid.x)}" y="${fmt(g.mid.y - 1)}" text-anchor="middle" font-size="${fmt(fz)}" font-weight="600" font-family="${MONO}" fill="${textColor}">${escapeXml(e.label)}</text></g>`;
   }
@@ -261,15 +264,16 @@ export function exportDiagramToSvg({
   const groupNodes = nodes.filter((n) => n.type === "group");
   const regularNodes = nodes.filter((n) => n.type !== "group");
 
-  const groupsHtml = groupNodes.map(renderGroupNode).join("\n    ");
+  const groupsHtml = groupNodes.map((n) => renderGroupNode(n, T)).join("\n    ");
   const edgesHtml = edges.map((e) => renderEdge(e, byId, T)).filter(Boolean).join("\n    ");
   const regularNodesHtml = regularNodes
     .map((n) => {
       const shape = renderShapeElement(n);
-      const text = renderNodeText(n);
+      const text = renderNodeText(n, T);
       const badge = renderNodeBadge(n, T);
       const sw = fmt(n.strokeWidth || 2);
-      return `<g class="fs-node fs-node-${escapeXml(n.type)} fs-node-${escapeXml(n.id)}" id="node-${escapeXml(n.id)}" data-node-id="${escapeXml(n.id)}" data-node-type="${escapeXml(n.type)}" style="--node-fill:${n.fill}; --node-stroke:${n.stroke}; --node-text:${n.textColor}; --node-stroke-width:${sw}px;">\n      ${shape}${text ? `\n      ${text}` : ""}${badge ? `\n      ${badge}` : ""}\n    </g>`;
+      const effectiveText = getEffectiveTextColor(n, T);
+      return `<g class="fs-node fs-node-${escapeXml(n.type)} fs-node-${escapeXml(n.id)}" id="node-${escapeXml(n.id)}" data-node-id="${escapeXml(n.id)}" data-node-type="${escapeXml(n.type)}" style="--node-fill:${n.fill}; --node-stroke:${n.stroke}; --node-text:${effectiveText}; --node-stroke-width:${sw}px;">\n      ${shape}${text ? `\n      ${text}` : ""}${badge ? `\n      ${badge}` : ""}\n    </g>`;
     })
     .join("\n    ");
 

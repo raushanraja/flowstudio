@@ -35,7 +35,7 @@ export function normalizeDiagram(data) {
       h: num(n.h, 56),
       fill: str(n.fill, "#ffffff"),
       stroke: str(n.stroke, "#a1a1aa"),
-      textColor: str(n.textColor, "#3f3f46"),
+      textColor: str(n.textColor, ""),
       strokeWidth: num(n.strokeWidth, 2),
       fontSize: num(n.fontSize, 14),
       text: str(n.text, ""),

@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   THEMES,
-  PALETTES,
-  GROUP_STYLES,
+  DEFAULT_THEME_ID,
   SHAPE_DEFS,
   nextTheme,
   isTheme,
+  isDarkTheme,
+  getGroupStyle,
+  getPaletteForTheme,
+  getContrast,
+  getEffectiveTextColor,
   rethemeDiagram,
   rethemeEdges,
 } from "./lib/theme.js";
@@ -77,12 +81,12 @@ export default function App() {
     if (saved?.theme && isTheme(saved.theme)) return saved.theme;
     try {
       const t = localStorage.getItem("fs-theme");
-      return isTheme(t) ? t : "light";
+      return isTheme(t) ? t : DEFAULT_THEME_ID;
     } catch {
-      return "light";
+      return DEFAULT_THEME_ID;
     }
   });
-  const T = THEMES[theme] || THEMES.light;
+  const T = THEMES[theme] || THEMES[DEFAULT_THEME_ID];
   const [nodes, setNodes] = useState(saved?.nodes ?? INITIAL.nodes);
   const [edges, setEdges] = useState(saved?.edges ?? INITIAL.edges);
   const [scenarios, setScenarios] = useState(saved?.scenarios ?? []);
@@ -467,7 +471,7 @@ export default function App() {
 
   /* ---------- node factory ---------- */
   function makeNode(type, x, y) {
-    const pal = PALETTES[theme] || PALETTES.light;
+    const pal = getPaletteForTheme(theme);
     const c = pal[nodesRef.current.length % pal.length];
     const dims = NODE_SIZES[type] || [180, 56];
     const base = {
@@ -492,7 +496,7 @@ export default function App() {
         text: "Text",
       };
     if (type === "group") {
-      const gStyle = GROUP_STYLES[theme] || GROUP_STYLES.light;
+      const gStyle = getGroupStyle(theme);
       return {
         ...base,
         fill: gStyle.fill,
@@ -505,7 +509,7 @@ export default function App() {
       ...base,
       fill: c.fill,
       stroke: c.stroke,
-      textColor: c.text,
+      textColor: c.text || getEffectiveTextColor({ fill: c.fill }, theme),
       text: "New Node",
     };
   }
@@ -1628,9 +1632,9 @@ export default function App() {
   const harmonizeSelection = (targetTheme = theme) => {
     if (!sel.nodes.length) return;
     pushUndo({ nodes, edges });
-    const pal = PALETTES[targetTheme] || PALETTES.light;
-    const gStyle = GROUP_STYLES[targetTheme] || GROUP_STYLES.light;
-    const targetT = THEMES[targetTheme] || THEMES.light;
+    const pal = getPaletteForTheme(targetTheme);
+    const gStyle = getGroupStyle(targetTheme);
+    const targetT = THEMES[targetTheme] || THEMES[DEFAULT_THEME_ID];
     const selSet = new Set(sel.nodes);
 
     setNodes((curr) => {
@@ -1645,13 +1649,21 @@ export default function App() {
             textColor: targetT.text,
           };
         }
+        if (n.type === "text") {
+          return {
+            ...n,
+            fill: "transparent",
+            stroke: "transparent",
+            textColor: targetT.text,
+          };
+        }
         const c = pal[regIdx % pal.length];
         regIdx++;
         return {
           ...n,
           fill: c.fill,
           stroke: c.stroke,
-          textColor: c.text || n.textColor || c.stroke,
+          textColor: c.text || getEffectiveTextColor({ ...n, fill: c.fill }, targetTheme),
         };
       });
     });
@@ -1926,12 +1938,43 @@ export default function App() {
   }
 
   const setTheme = (t) => {
+    const prevTheme = theme;
     setThemeState(t);
     try {
       localStorage.setItem("fs-theme", t);
     } catch {
       /* ignore */
     }
+
+    const prevT = THEMES[prevTheme] || THEMES[DEFAULT_THEME_ID];
+    const nextT = THEMES[t] || THEMES[DEFAULT_THEME_ID];
+    const nextGStyle = getGroupStyle(t);
+
+    setNodes((curr) =>
+      curr.map((n) => {
+        if (n.type === "text") {
+          if (!n.textColor || n.textColor === prevT.text || getContrast(n.textColor, nextT.bg) < 3.0) {
+            return { ...n, textColor: nextT.text };
+          }
+        }
+        if (n.type === "group") {
+          return {
+            ...n,
+            fill: nextGStyle.fill,
+            stroke: nextGStyle.stroke,
+            textColor:
+              !n.textColor || n.textColor === prevT.text || getContrast(n.textColor, nextT.bg) < 3.0
+                ? nextT.text
+                : n.textColor,
+          };
+        }
+        const safeText = getEffectiveTextColor(n, t);
+        if (safeText !== n.textColor && getContrast(n.textColor, n.fill) < 2.5) {
+          return { ...n, textColor: safeText };
+        }
+        return n;
+      })
+    );
   };
 
   function newDocument() {
@@ -1964,7 +2007,7 @@ export default function App() {
         overflow: "hidden",
         background: T.bg,
         color: T.text,
-        colorScheme: theme === "light" ? "light" : "dark",
+        colorScheme: isDarkTheme(theme) ? "dark" : "light",
         accentColor: T.accent,
         "--bg": T.bg,
         "--panel": T.panel,

@@ -1,4 +1,5 @@
 import { edgeGeom, normRect, portPos } from "../lib/geometry.js";
+import { getEffectiveEdgeTextColor } from "../lib/theme.js";
 import { NodeShape, NodeText } from "./Shapes.jsx";
 import PlaybackOverlay from "./PlaybackOverlay.jsx";
 import {
@@ -181,7 +182,7 @@ export default function Canvas({
                       fontSize={e.fontSize || 11}
                       fontWeight={600}
                       fontFamily="'JetBrains Mono', monospace"
-                      fill={e.textColor || e.stroke}
+                      fill={getEffectiveEdgeTextColor(e, e.labelBg || T.panelSolid, T)}
                     >
                       {e.label}
                     </text>
@@ -300,8 +301,8 @@ export default function Canvas({
                 )}
 
                 {/* Node Shape */}
-                <NodeShape n={n} />
-                {n.type !== "group" && <NodeText n={n} />}
+                <NodeShape n={n} T={T} />
+                {n.type !== "group" && <NodeText n={n} T={T} />}
 
                 {/* Badge Circle */}
                 {n.badge && (

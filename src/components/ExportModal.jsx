@@ -288,12 +288,15 @@ export default function ExportModal({
             </div>
             <div
               style={{
-                display: "flex",
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
                 background: "var(--panel-solid)",
-                padding: 3,
+                padding: 4,
                 borderRadius: 10,
                 border: "1px solid var(--border)",
-                gap: 2,
+                gap: 4,
+                maxHeight: 160,
+                overflowY: "auto",
               }}
             >
               {THEME_ORDER.map((t) => {
@@ -304,34 +307,38 @@ export default function ExportModal({
                     key={t}
                     type="button"
                     onClick={() => setExportTheme(t)}
+                    title={THEME_LABELS[t] || t}
                     style={{
-                      flex: 1,
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      gap: 4,
-                      padding: "6px 4px",
-                      border: "none",
-                      borderRadius: 7,
+                      gap: 6,
+                      padding: "6px 8px",
+                      border: isSelected ? "1px solid var(--accent)" : "1px solid transparent",
+                      borderRadius: 8,
                       fontSize: 11,
                       fontWeight: 600,
                       cursor: "pointer",
                       background: isSelected ? "var(--accent-light)" : "transparent",
                       color: isSelected ? "var(--accent)" : "var(--muted)",
                       transition: "all 0.15s ease",
+                      textAlign: "left",
+                      minWidth: 0,
                     }}
                   >
                     <span
                       style={{
-                        width: 8,
-                        height: 8,
+                        width: 9,
+                        height: 9,
                         borderRadius: "50%",
                         background: tBg,
-                        border: "1px solid rgba(255,255,255,0.35)",
+                        border: "1px solid rgba(148, 163, 184, 0.4)",
                         display: "inline-block",
+                        flexShrink: 0,
                       }}
                     />
-                    {THEME_LABELS[t]}
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {THEME_LABELS[t] || t}
+                    </span>
                   </button>
                 );
               })}

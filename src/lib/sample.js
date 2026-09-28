@@ -27,7 +27,7 @@ export function sampleDiagram() {
     40,
     270,
     210,
-    { fill: "rgba(130,130,140,.10)", stroke: "#a1a1aa", text: "#3f3f46" },
+    { fill: "rgba(130,130,140,.10)", stroke: "#a1a1aa", text: "" },
     "Signup / Login / Logout",
   );
   const form = N("rounded", 70, 90, 210, 50, blue, "<form>", {

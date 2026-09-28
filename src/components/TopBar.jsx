@@ -13,7 +13,7 @@ import {
   Presentation,
   Sparkles,
 } from "lucide-react";
-import { nextTheme, THEME_LABELS } from "../lib/theme.js";
+import { nextTheme, THEME_LABELS, isDarkTheme } from "../lib/theme.js";
 
 export default function TopBar({
   tool,
@@ -152,15 +152,15 @@ export default function TopBar({
         <Download size={15} />
       </button>
 
-      {/* Theme Toggle — cycles Light → Dark → Clay */}
+      {/* Theme Toggle — cycles through all themes */}
       {(() => {
         const next = nextTheme(theme);
         const Icon =
-          theme === "light" ? Sun : theme === "clay" ? Palette : Moon;
+          theme === "clay" ? Palette : isDarkTheme(theme) ? Moon : Sun;
         return (
           <button
             className="fs-btn-ghost"
-            title={`Theme: ${THEME_LABELS[theme]} (Click to switch to ${THEME_LABELS[next]})`}
+            title={`Theme: ${THEME_LABELS[theme] || theme} (Click to switch to ${THEME_LABELS[next] || next})`}
             onClick={onToggleTheme}
           >
             <Icon size={15} />
