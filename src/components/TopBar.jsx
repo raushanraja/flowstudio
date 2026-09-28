@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
   Presentation,
   Sparkles,
+  Workflow,
 } from "lucide-react";
 import { nextTheme, THEME_LABELS, isDarkTheme } from "../lib/theme.js";
 
@@ -28,6 +29,7 @@ export default function TopBar({
   onToggleInspector,
   isInspectorOpen,
   onToggleSim,
+  onAutoLayout,
 }) {
   return (
     <div
@@ -137,6 +139,17 @@ export default function TopBar({
       </button>
 
       <span className="fs-sep" />
+
+      {/* Auto-Layout */}
+      {onAutoLayout && (
+        <button
+          className="fs-btn-ghost"
+          title="Auto-Layout Diagram (Top-to-Bottom)"
+          onClick={() => onAutoLayout("TB")}
+        >
+          <Workflow size={15} />
+        </button>
+      )}
 
       {/* New Document */}
       <button className="fs-btn-ghost" title="New Document" onClick={onNew}>

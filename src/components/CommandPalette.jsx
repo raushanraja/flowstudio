@@ -34,6 +34,7 @@ import {
   AlignVerticalSpaceBetween,
   Image,
   FileImage,
+  Code2,
 } from "lucide-react";
 import {
   SHAPE_DEFS,
@@ -72,11 +73,14 @@ export default function CommandPalette({
   onToggleTheme,
   onSetTheme,
   onHarmonizeDiagram,
+  onAutoLayout,
   onOpenExport,
   onExportSVG,
   onExportPNG,
   onCopyPNG,
   onCopySVG,
+  onCopyMermaid,
+  onExportMermaid,
   onNew,
   importFileRef,
   mermaidFileRef,
@@ -126,6 +130,8 @@ export default function CommandPalette({
     { id: "select-all", category: "Edit", title: "Select All", icon: Sparkles, shortcut: "Ctrl+A", run: onSelectAll },
     { id: "group", category: "Organize", title: "Group Selected", icon: Group, shortcut: "Ctrl+G", run: onGroup },
     { id: "ungroup", category: "Organize", title: "Ungroup Selected", icon: BoxSelect, shortcut: "Ctrl+Shift+G", run: onUngroup },
+    { id: "layout-tb", category: "Organize", title: "Auto-Layout Diagram (Top-to-Bottom)", icon: Workflow, run: () => onAutoLayout?.("TB") },
+    { id: "layout-lr", category: "Organize", title: "Auto-Layout Diagram (Left-to-Right)", icon: Workflow, run: () => onAutoLayout?.("LR") },
     
     // Alignment & Distribution
     { id: "align-left", category: "Align", title: "Align Left", icon: AlignLeft, run: () => onAlign("left") },
@@ -164,7 +170,9 @@ export default function CommandPalette({
       : []),
 
     // File & Export
-    { id: "export-modal", category: "File", title: "Export Diagram (Customize SVG / PNG / JSON)", icon: Download, run: onOpenExport },
+    { id: "export-modal", category: "File", title: "Export Diagram (Customize SVG / PNG / JSON / Mermaid)", icon: Download, run: onOpenExport },
+    { id: "copy-mermaid", category: "File", title: "Copy Diagram as Mermaid Code", icon: Code2, run: onCopyMermaid },
+    { id: "export-mermaid", category: "File", title: "Export as Mermaid Flowchart (.mmd)", icon: Download, run: onExportMermaid },
     { id: "export-png-trans", category: "File", title: "Export Transparent PNG Image", icon: Image, run: () => onExportPNG?.({ transparent: true, scale: 2 }) },
     { id: "export-svg-trans", category: "File", title: "Export Transparent Vector SVG", icon: FileImage, run: () => onExportSVG?.({ transparent: true }) },
     { id: "copy-png-trans", category: "File", title: "Copy Transparent PNG to Clipboard", icon: Copy, run: () => onCopyPNG?.({ transparent: true, scale: 2 }) },

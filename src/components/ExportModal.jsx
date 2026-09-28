@@ -9,7 +9,7 @@ import {
   Check,
   AlertCircle,
   Loader2,
-  Palette,
+  Code2,
 } from "lucide-react";
 import { THEMES, THEME_ORDER, THEME_LABELS } from "../lib/theme.js";
 
@@ -17,12 +17,14 @@ export default function ExportModal({
   isOpen,
   onClose,
   theme = "dark",
-  T,
+  T: _T,
   onExportJSON,
   onExportSVG,
   onExportPNG,
   onCopyPNG,
   onCopySVG,
+  onExportMermaid,
+  onCopyMermaid,
 }) {
   const [transparent, setTransparent] = useState(false);
   const [exportTheme, setExportTheme] = useState(theme);
@@ -85,6 +87,20 @@ export default function ExportModal({
     } catch {
       setCopyError("svg");
       setTimeout(() => setCopyError(null), 3500);
+    } finally {
+      setIsCopying(null);
+    }
+  };
+
+  const handleCopyMermaid = async () => {
+    if (!onCopyMermaid || isCopying) return;
+    setIsCopying("mermaid");
+    try {
+      const ok = await onCopyMermaid();
+      if (ok) {
+        setCopiedType("mermaid");
+        setTimeout(() => setCopiedType(null), 2000);
+      }
     } finally {
       setIsCopying(null);
     }
@@ -736,6 +752,128 @@ export default function ExportModal({
                 <Download size={14} />
                 Download SVG
               </button>
+            </div>
+          </div>
+
+          {/* Mermaid Flowchart Card */}
+          <div
+            style={{
+              padding: 16,
+              borderRadius: 14,
+              border: "1px solid var(--border)",
+              background: "var(--panel-solid)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+              <div
+                style={{
+                  padding: 10,
+                  borderRadius: 12,
+                  background: "var(--accent-light)",
+                  color: "var(--accent)",
+                  flexShrink: 0,
+                }}
+              >
+                <Code2 size={22} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 3,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span style={{ fontWeight: 700, fontSize: 14 }}>
+                    Mermaid Flowchart
+                  </span>
+                  <span className="fs-kbd" style={{ fontSize: 10 }}>.mmd</span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--accent)",
+                      background: "var(--accent-light)",
+                      padding: "1px 7px",
+                      borderRadius: 6,
+                    }}
+                  >
+                    Markdown Ready
+                  </span>
+                </div>
+                <div style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.4 }}>
+                  Text-based flowchart syntax with subgraphs, shapes, and connection arrows. Paste directly into GitHub, GitLab, Notion, or Mermaid live editor.
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons for Mermaid */}
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                justifyContent: "flex-end",
+              }}
+            >
+              {onCopyMermaid && (
+                <button
+                  type="button"
+                  className="fs-btn-ghost"
+                  disabled={!!isCopying}
+                  onClick={handleCopyMermaid}
+                  style={{
+                    background:
+                      copiedType === "mermaid"
+                        ? "var(--accent-light)"
+                        : "rgba(148, 163, 184, 0.08)",
+                    color:
+                      copiedType === "mermaid"
+                        ? "var(--accent)"
+                        : "var(--text)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 9,
+                    padding: "6px 12px",
+                    fontWeight: 600,
+                    fontSize: 12,
+                  }}
+                >
+                  {copiedType === "mermaid" ? (
+                    <>
+                      <Check size={14} style={{ color: "var(--accent)" }} />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      Copy Mermaid
+                    </>
+                  )}
+                </button>
+              )}
+              {onExportMermaid && (
+                <button
+                  type="button"
+                  className="fs-btn on"
+                  onClick={() => {
+                    onExportMermaid();
+                    onClose();
+                  }}
+                  style={{
+                    borderRadius: 9,
+                    padding: "6px 16px",
+                    fontWeight: 600,
+                    fontSize: 12,
+                  }}
+                >
+                  <Download size={14} />
+                  Download .mmd
+                </button>
+              )}
             </div>
           </div>
 

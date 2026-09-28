@@ -7,7 +7,6 @@ import {
   isTheme,
   isDarkTheme,
   getGroupStyle,
-  GROUP_STYLES,
   getPaletteForTheme,
   getContrast,
   getEffectiveTextColor,
@@ -34,6 +33,8 @@ import PropertiesPanel from "./components/PropertiesPanel.jsx";
 import CommandPalette from "./components/CommandPalette.jsx";
 import ExportModal from "./components/ExportModal.jsx";
 import { exportDiagramToSvg } from "./lib/exportSvg.js";
+import { layoutDiagram } from "./lib/layout.js";
+import { exportMermaid } from "./lib/exportMermaid.js";
 import PlayBar from "./components/PlayBar.jsx";
 import ScenariosPanel from "./components/ScenariosPanel.jsx";
 
@@ -670,16 +671,62 @@ export default function App() {
     const p0 = worldFromEvent(e);
     const snapShot = serialize();
     let moved = false;
+    let duplicated = false;
+    let activeOrig = orig;
+    const initialAlt = e.altKey;
+
     dragSession(
       (ev) => {
         const q = worldFromEvent(ev);
         const dx = q.x - p0.x,
           dy = q.y - p0.y;
+        if (!moved && Math.hypot(dx, dy) < 2) return;
         moved = true;
+
+        if ((initialAlt || ev.altKey) && !duplicated) {
+          duplicated = true;
+          const idMap = {};
+          const clones = [];
+          nodesRef.current
+            .filter((n) => moveSet.includes(n.id))
+            .forEach((n) => {
+              const c = { ...n, id: uid(), parentId: null };
+              idMap[n.id] = c.id;
+              clones.push(c);
+            });
+          clones.forEach((c) => {
+            if (c.parentId && idMap[c.parentId]) c.parentId = idMap[c.parentId];
+            else c.parentId = null;
+          });
+          const newEdges = edgesRef.current
+            .filter((ed) => idMap[ed.from] && idMap[ed.to])
+            .map((ed) => ({
+              ...ed,
+              id: uid("e"),
+              from: idMap[ed.from],
+              to: idMap[ed.to],
+              toPos: ed.toPos ? { ...ed.toPos } : undefined,
+              waypoints: ed.waypoints
+                ? ed.waypoints.map((w) => ({ ...w }))
+                : undefined,
+            }));
+
+          activeOrig = {};
+          clones.forEach((c) => {
+            activeOrig[c.id] = { x: c.x, y: c.y };
+          });
+
+          setNodes((ns) => [...ns, ...clones]);
+          if (newEdges.length) {
+            setEdges((es) => [...es, ...newEdges]);
+          }
+          setSel({ nodes: clones.map((c) => c.id), edges: [] });
+        }
+
         setNodes((ns) =>
           ns.map((n) =>
-            orig[n.id]
-              ? { ...n, x: sn(orig[n.id].x + dx), y: sn(orig[n.id].y + dy) }
+            activeOrig[n.id]
+              ? { ...n, x: sn(activeOrig[n.id].x + dx), y: sn(activeOrig[n.id].y + dy) }
               : n,
           ),
         );
@@ -1195,6 +1242,19 @@ export default function App() {
         return { ...n, x: sn(x), y: sn(y) };
       }),
     );
+  }
+  function handleAutoLayout(direction = "TB") {
+    const ids = selRef.current.nodes;
+    const isSubset = ids && ids.length >= 2;
+    pushUndo(serialize());
+    const res = layoutDiagram({
+      nodes: nodesRef.current,
+      edges: edgesRef.current,
+      direction,
+      selectedIds: isSubset ? ids : null,
+    });
+    setNodes(res.nodes);
+    setEdges(res.edges);
   }
   const patchSelNodes = (patch, key) => {
     pushUndo(serialize(), key || "__patch");
@@ -1873,6 +1933,33 @@ export default function App() {
     // 2. Fallback using execCommand
     return copyTextFallback(b.str);
   };
+  const exportMermaidFile = (direction = "TB") => {
+    const code = exportMermaid({
+      nodes: nodesRef.current,
+      edges: edgesRef.current,
+      direction,
+    });
+    save(
+      new Blob([code], { type: "text/plain;charset=utf-8" }),
+      "flowchart.mmd",
+    );
+  };
+  const copyMermaidToClipboard = async (direction = "TB") => {
+    const code = exportMermaid({
+      nodes: nodesRef.current,
+      edges: edgesRef.current,
+      direction,
+    });
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code);
+        return true;
+      }
+    } catch (err) {
+      console.warn("navigator.clipboard.writeText failed, using fallback...", err);
+    }
+    return copyTextFallback(code);
+  };
   const exportJSON = () =>
     save(
       new Blob(
@@ -2038,6 +2125,7 @@ export default function App() {
           onToggleInspector={() => setIsInspectorOpen((prev) => !prev)}
           isInspectorOpen={isInspectorOpen}
           onToggleSim={toggleSim}
+          onAutoLayout={handleAutoLayout}
         />
       )}
 
@@ -2197,6 +2285,7 @@ export default function App() {
           onSetTheme={setTheme}
           onHarmonizeDiagram={() => harmonizeDiagram(theme)}
           onHarmonizeSelection={() => harmonizeSelection(theme)}
+          onAutoLayout={handleAutoLayout}
           onClose={() => setIsInspectorOpen(false)}
         />
       )}
@@ -2226,6 +2315,7 @@ export default function App() {
         onToggleTheme={() => setTheme(nextTheme(theme))}
         onSetTheme={setTheme}
         onHarmonizeDiagram={() => harmonizeDiagram(theme)}
+        onAutoLayout={handleAutoLayout}
         onOpenExport={() => {
           setIsCmdPaletteOpen(false);
           setIsExportModalOpen(true);
@@ -2234,6 +2324,8 @@ export default function App() {
         onExportPNG={exportPNG}
         onCopyPNG={copyPNGToClipboard}
         onCopySVG={copySVGToClipboard}
+        onCopyMermaid={copyMermaidToClipboard}
+        onExportMermaid={exportMermaidFile}
         onImportJSON={importJSON}
         onImportMermaid={importMermaid}
         onNew={newDocument}
@@ -2252,6 +2344,8 @@ export default function App() {
         onExportPNG={exportPNG}
         onCopyPNG={copyPNGToClipboard}
         onCopySVG={copySVGToClipboard}
+        onCopyMermaid={copyMermaidToClipboard}
+        onExportMermaid={exportMermaidFile}
       />
 
       {/* Hidden File Input for Import */}

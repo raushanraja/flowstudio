@@ -16,6 +16,8 @@ import {
   RotateCcw,
   Sparkles,
   Repeat,
+  Workflow,
+  Network,
 } from "lucide-react";
 import {
   SHAPE_DEFS,
@@ -109,6 +111,7 @@ export default function PropertiesPanel({
   onSetTheme,
   onHarmonizeDiagram,
   onHarmonizeSelection,
+  onAutoLayout,
   onClose,
 }) {
   const isSingleNode = selectedCount === 1 && selectedEdges === 0 && !!single;
@@ -846,6 +849,27 @@ export default function PropertiesPanel({
                   <Icon size={14} />
                 </button>
               ))}
+              {onAutoLayout && (
+                <>
+                  <div style={{ width: 1, height: 18, background: "var(--border)", margin: "0 2px" }} />
+                  <button
+                    type="button"
+                    className="fs-mini"
+                    title="Auto-Layout Selected Nodes (Top-to-Bottom)"
+                    onClick={() => onAutoLayout("TB")}
+                  >
+                    <Workflow size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="fs-mini"
+                    title="Auto-Layout Selected Nodes (Left-to-Right)"
+                    onClick={() => onAutoLayout("LR")}
+                  >
+                    <Network size={14} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -1191,6 +1215,35 @@ export default function PropertiesPanel({
             </div>
           </div>
 
+          {/* Auto-Layout Diagram */}
+          {onAutoLayout && (
+            <div className="fs-lbl">
+              Auto-Layout Diagram
+              <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                <button
+                  type="button"
+                  className="fs-btn"
+                  style={{ flex: 1, padding: "6px 8px", fontSize: 11, justifyContent: "center" }}
+                  title="Auto-Layout Diagram Top-to-Bottom"
+                  onClick={() => onAutoLayout("TB")}
+                >
+                  <Workflow size={13} />
+                  Top to Bottom
+                </button>
+                <button
+                  type="button"
+                  className="fs-btn"
+                  style={{ flex: 1, padding: "6px 8px", fontSize: 11, justifyContent: "center" }}
+                  title="Auto-Layout Diagram Left-to-Right"
+                  onClick={() => onAutoLayout("LR")}
+                >
+                  <Network size={13} />
+                  Left to Right
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Quick Shortcuts */}
           <div
             style={{
@@ -1207,6 +1260,7 @@ export default function PropertiesPanel({
             <div style={{ fontWeight: 700, color: "var(--text)" }}>Quick Shortcuts</div>
             <div>• <b>Space / H</b>: Pan canvas freely</div>
             <div>• <b>V</b>: Select &amp; box marquee</div>
+            <div>• <b>Alt + Drag</b>: Duplicate selection</div>
             <div>• <b>Ctrl+K / ⌘K</b>: Command palette</div>
             <div>• <b>Double-click</b>: Quick-edit text</div>
             <div>• <b>Shift+Click</b>: Multi-select</div>
