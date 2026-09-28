@@ -26,42 +26,46 @@ const MORPH_SHAPES = [
   { type: "cylinder", label: "Cylinder" },
 ];
 
-function getArchPath(w, h, placeBelow = false) {
-  const r = 14;
+function getCenterArcPillPath(w, h, placeBelow = false) {
+  const r = 16;
   const mid = w / 2;
-  const archW = 34;
-  const archH = 10;
+  const notchW = 20; // 40px smooth center arc
+  const notchH = 8; // 8px smooth arc depth
 
   if (!placeBelow) {
-    // Arch upward: top curves up in center, bottom has archway cutout over the + button
+    // Normal: HUD is above node. Completely straight top, straight sides, center arc at bottom.
     return [
-      `M 0 ${r + 4}`,
-      `A ${r} ${r} 0 0 1 ${r} 4`,
-      `C ${mid - w / 5} 0, ${mid + w / 5} 0, ${w - r} 4`,
-      `A ${r} ${r} 0 0 1 ${w} ${r + 4}`,
+      `M ${r} 0`,
+      `L ${w - r} 0`,
+      `A ${r} ${r} 0 0 1 ${w} ${r}`,
       `L ${w} ${h - r}`,
       `A ${r} ${r} 0 0 1 ${w - r} ${h}`,
-      `L ${mid + archW} ${h}`,
-      `C ${mid + archW * 0.55} ${h}, ${mid + archW * 0.45} ${h - archH}, ${mid} ${h - archH}`,
-      `C ${mid - archW * 0.45} ${h - archH}, ${mid - archW * 0.55} ${h}, ${mid - archW} ${h}`,
+      `L ${mid + notchW} ${h}`,
+      `Q ${mid + notchW * 0.65} ${h} ${mid + notchW * 0.45} ${h - notchH * 0.4}`,
+      `Q ${mid} ${h - notchH * 1.15} ${mid - notchW * 0.45} ${h - notchH * 0.4}`,
+      `Q ${mid - notchW * 0.65} ${h} ${mid - notchW} ${h}`,
       `L ${r} ${h}`,
       `A ${r} ${r} 0 0 1 0 ${h - r}`,
+      `L 0 ${r}`,
+      `A ${r} ${r} 0 0 1 ${r} 0`,
       "Z",
     ].join(" ");
   } else {
-    // Arch downward when placed below the node: top has archway cutout over the bottom + button
+    // Flipped: HUD is below node. Completely straight bottom, straight sides, center arc at top.
     return [
-      `M 0 ${r}`,
-      `A ${r} ${r} 0 0 1 ${r} 0`,
-      `L ${mid - archW} 0`,
-      `C ${mid - archW * 0.55} 0, ${mid - archW * 0.45} ${archH}, ${mid} ${archH}`,
-      `C ${mid + archW * 0.45} ${archH}, ${mid + archW * 0.55} 0, ${mid + archW} 0`,
+      `M ${r} 0`,
+      `L ${mid - notchW} 0`,
+      `Q ${mid - notchW * 0.65} 0 ${mid - notchW * 0.45} ${notchH * 0.4}`,
+      `Q ${mid} ${notchH * 1.15} ${mid + notchW * 0.45} ${notchH * 0.4}`,
+      `Q ${mid + notchW * 0.65} 0 ${mid + notchW} 0`,
       `L ${w - r} 0`,
       `A ${r} ${r} 0 0 1 ${w} ${r}`,
-      `L ${w} ${h - r - 4}`,
-      `A ${r} ${r} 0 0 1 ${w - r} ${h - 4}`,
-      `C ${mid + w / 5} ${h}, ${mid - w / 5} ${h}, ${r} ${h - 4}`,
-      `A ${r} ${r} 0 0 1 0 ${h - r - 4}`,
+      `L ${w} ${h - r}`,
+      `A ${r} ${r} 0 0 1 ${w - r} ${h}`,
+      `L ${r} ${h}`,
+      `A ${r} ${r} 0 0 1 0 ${h - r}`,
+      `L 0 ${r}`,
+      `A ${r} ${r} 0 0 1 ${r} 0`,
       "Z",
     ].join(" ");
   }
@@ -83,7 +87,7 @@ export default function FloatingHUD({
   onEditLabel,
 }) {
   const [showShapePicker, setShowShapePicker] = useState(false);
-  const [hudSize, setHudSize] = useState({ w: 340, h: 48 });
+  const [hudSize, setHudSize] = useState({ w: 340, h: 44 });
   const hudRef = useRef(null);
 
   useLayoutEffect(() => {
@@ -124,11 +128,10 @@ export default function FloatingHUD({
     const topScreenY = cam.y + minY * cam.zoom;
     const bottomScreenY = cam.y + maxY * cam.zoom;
 
-    // The top + handle apex is at topScreenY - 25px.
-    // Setting CLEARANCE = 44px ensures the bottom of the HUD is at topScreenY - 44px,
-    // and the center arch cutout peak is at topScreenY - 54px.
-    // This gives generous 29px clearance directly over the top + handle.
-    const CLEARANCE = 44;
+    // Clearance of 36px places the bottom flat edge at topScreenY - 36px,
+    // and the center arc notch peak at topScreenY - 44px.
+    // The top + handle apex is at topScreenY - 25px, leaving 19px of breathing room.
+    const CLEARANCE = 36;
     if (topScreenY - 60 < 70) {
       cy = bottomScreenY + CLEARANCE;
       placeBelow = true;
@@ -176,7 +179,7 @@ export default function FloatingHUD({
   const single = isSingleNode ? nodes.find((n) => n.id === sel.nodes[0]) : null;
   const singleEdge = hasSingleEdge ? edges.find((ed) => ed.id === sel.edges[0]) : null;
 
-  const archD = hasNodes ? getArchPath(hudSize.w, hudSize.h, placeBelow) : null;
+  const arcD = hasNodes ? getCenterArcPillPath(hudSize.w, hudSize.h, placeBelow) : null;
 
   return (
     <div
@@ -191,12 +194,12 @@ export default function FloatingHUD({
         alignItems: "center",
         justifyContent: "center",
         userSelect: "none",
-        filter: "drop-shadow(0 14px 34px rgba(0, 0, 0, 0.35)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.12))",
+        filter: "drop-shadow(0 12px 30px rgba(0, 0, 0, 0.32)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.12))",
         animation: "fs-fade-in 0.12s cubic-bezier(0.16, 1, 0.3, 1)",
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {/* SVG Arch Shape Backdrop for Nodes */}
+      {/* SVG Pill Backdrop with Center Arc Notch for Nodes */}
       {hasNodes ? (
         <svg
           style={{
@@ -211,14 +214,14 @@ export default function FloatingHUD({
           }}
         >
           <path
-            d={archD}
+            d={arcD}
             fill="var(--panel-solid, rgba(30, 36, 50, 0.95))"
             stroke="var(--border-hard, rgba(148, 163, 184, 0.35))"
             strokeWidth={1.25}
           />
         </svg>
       ) : (
-        /* Standard capsule backdrop for edges */
+        /* Standard clean capsule backdrop for edges */
         <div
           className="fs-glass"
           style={{
@@ -234,7 +237,7 @@ export default function FloatingHUD({
         />
       )}
 
-      {/* Toolbar Buttons Layout */}
+      {/* Toolbar Buttons Layout - perfectly level & horizontally centered */}
       <div
         style={{
           position: "relative",
@@ -242,11 +245,7 @@ export default function FloatingHUD({
           display: "flex",
           alignItems: "center",
           gap: 6,
-          padding: hasNodes
-            ? placeBelow
-              ? "11px 14px 6px"
-              : "6px 14px 11px"
-            : "6px 10px",
+          padding: "5px 12px",
         }}
       >
         {/* Node Controls */}
@@ -254,12 +253,7 @@ export default function FloatingHUD({
           <>
             {/* Shape Morpher for single node */}
             {single && single.type !== "group" && (
-              <div
-                style={{
-                  position: "relative",
-                  transform: placeBelow ? "translateY(-1px)" : "translateY(2px)",
-                }}
-              >
+              <div style={{ position: "relative" }}>
                 <button
                   type="button"
                   className={`fs-hud-btn ${showShapePicker ? "on" : ""}`}
@@ -311,16 +305,8 @@ export default function FloatingHUD({
               </div>
             )}
 
-            {/* Quick Color Swatches at Arch Center Peak */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "0 4px",
-                transform: placeBelow ? "translateY(1px)" : "translateY(-1px)",
-              }}
-            >
+            {/* Quick Color Swatches */}
+            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "0 4px" }}>
               {presets.slice(0, 6).map((p) => {
                 const stroke = presetStroke(p, theme);
                 const fill = presetFill(p, theme);
@@ -349,15 +335,7 @@ export default function FloatingHUD({
               })}
             </div>
 
-            <div
-              style={{
-                width: 1,
-                height: 20,
-                background: "var(--border)",
-                margin: "0 2px",
-                transform: placeBelow ? "translateY(-1px)" : "translateY(1px)",
-              }}
-            />
+            <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
 
             {/* Group button if multiple nodes selected */}
             {sel.nodes.length > 1 && onGroup && (
@@ -366,9 +344,6 @@ export default function FloatingHUD({
                 className="fs-hud-btn"
                 title="Group Selection (Ctrl+G)"
                 onClick={onGroup}
-                style={{
-                  transform: placeBelow ? "translateY(-1px)" : "translateY(2px)",
-                }}
               >
                 <Group size={16} />
               </button>
@@ -381,9 +356,6 @@ export default function FloatingHUD({
                 className="fs-hud-btn"
                 title="Duplicate (Ctrl+D / Alt+Drag)"
                 onClick={onDuplicate}
-                style={{
-                  transform: placeBelow ? "translateY(-1px)" : "translateY(2px)",
-                }}
               >
                 <CopyPlus size={16} />
               </button>
@@ -396,10 +368,7 @@ export default function FloatingHUD({
                 className="fs-hud-btn"
                 title="Delete (Del)"
                 onClick={onDelete}
-                style={{
-                  color: "#ef4444",
-                  transform: placeBelow ? "translateY(-1px)" : "translateY(2px)",
-                }}
+                style={{ color: "#ef4444" }}
               >
                 <Trash2 size={16} />
               </button>
