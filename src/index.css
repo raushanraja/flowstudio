@@ -438,12 +438,22 @@ textarea.fs-edit {
   animation: fsGlow 1.0s ease-in-out infinite;
 }
 
+/* Background services: continuously marching flow + breathing highlight */
+.fs-svc-pulse {
+  animation: fsDash 1.6s linear infinite;
+}
+
+.fs-svc-glow {
+  animation: fsGlow 1.6s ease-in-out infinite;
+}
+
 .fs-playbar {
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .fs-playbar button,
-.fs-playbar input[type="range"] {
+.fs-playbar input,
+.fs-playbar select {
   pointer-events: auto;
 }
 

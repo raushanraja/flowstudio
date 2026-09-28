@@ -106,21 +106,42 @@ export function createPlayback({
       .map((n) => n.id)[0];
 
   // Background services: nodes flagged `isService` get their own token that
-  // keeps ticking on an interval, independent of the main token's mode.
+  // keeps ticking on an interval, independent of the main token's mode. A
+  // flagged group runs its internal flow (entry child → …), staying inside
+  // the group; a flagged plain node follows its outgoing edges anywhere.
   const serviceDefs = nodes
-    .filter((n) => n.type !== "group" && n.isService)
-    .map((n) => ({
-      nodeId: n.id,
-      interval:
+    .filter((n) => n.isService)
+    .map((n) => {
+      const interval =
         Number.isFinite(+n.serviceIntervalMs) && +n.serviceIntervalMs > 0
           ? +n.serviceIntervalMs
-          : hopMs,
-    }));
+          : hopMs;
+      if (n.type === "group") {
+        const children = nodes.filter(
+          (c) => c.parentId === n.id && c.type !== "group",
+        );
+        if (!children.length) return null;
+        const scope = new Set(children.map((c) => c.id));
+        const hasIncoming = new Set(
+          realEdges
+            .filter((e) => scope.has(e.from) && scope.has(e.to))
+            .map((e) => e.to),
+        );
+        const entry =
+          children.find((c) => !hasIncoming.has(c.id)) ||
+          [...children].sort(topLeft)[0];
+        return { rootId: n.id, nodeId: entry.id, interval, scope };
+      }
+      return { rootId: n.id, nodeId: n.id, interval, scope: null };
+    })
+    .filter(Boolean);
   const freshServices = () =>
     serviceDefs.map((svc, i) => ({
       id: i + 1,
+      rootId: svc.rootId,
       nodeId: svc.nodeId,
       interval: svc.interval,
+      scope: svc.scope,
       activeNode: svc.nodeId,
       edge: null,
       t: 0,
@@ -171,8 +192,11 @@ export function createPlayback({
       }
     }
     if (!svc.edge) {
-      const outs = outgoing.get(svc.activeNode) || [];
-      const edge = pref[svc.activeNode] || outs[0];
+      const outs = (outgoing.get(svc.activeNode) || []).filter(
+        (id) => !svc.scope || svc.scope.has(edgeById(id)?.to),
+      );
+      const preferred = pref[svc.activeNode];
+      const edge = preferred && outs.includes(preferred) ? preferred : outs[0];
       if (!edge) {
         svc.restartPending = true;
         svc.hold = byId.get(svc.activeNode)?.dwellMs ?? svc.interval;

@@ -49,11 +49,17 @@ export default function PlayBar({
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 31,
-        display: "flex",
+        display: "inline-flex",
         alignItems: "center",
-        gap: 6,
+        gap: 8,
         padding: "6px 14px",
         borderRadius: 999,
+        width: "max-content",
+        maxWidth: "calc(100vw - 32px)",
+        whiteSpace: "nowrap",
+        flexWrap: "nowrap",
+        overflowX: "auto",
+        boxShadow: "0 16px 40px rgba(0, 0, 0, 0.35)",
       }}
     >
       <button
@@ -75,6 +81,7 @@ export default function PlayBar({
           display: "flex",
           alignItems: "center",
           gap: 6,
+          flexShrink: 0,
         }}
       >
         {playing ? (
@@ -90,14 +97,14 @@ export default function PlayBar({
         <span className="fs-kbd" style={{ fontSize: 9, opacity: 0.85, padding: "1px 4px" }}>Space</span>
       </button>
 
-      <span className="fs-sep" />
+      <span className="fs-sep" style={{ flexShrink: 0 }} />
 
       <button
         className="fs-btn-ghost"
         title="Step Back (B / ← / ,) — replays previous hop"
         onClick={onStepBack}
         disabled={steps === 0}
-        style={{ display: "flex", alignItems: "center", gap: 3, padding: "4px 8px" }}
+        style={{ display: "flex", alignItems: "center", gap: 3, padding: "4px 8px", flexShrink: 0 }}
       >
         <SkipBack size={15} />
         <span className="fs-kbd" style={{ fontSize: 9 }}>B</span>
@@ -107,7 +114,7 @@ export default function PlayBar({
         title="Step Forward (N / → / .) — advances one hop"
         onClick={onStepFwd}
         disabled={done}
-        style={{ display: "flex", alignItems: "center", gap: 3, padding: "4px 8px" }}
+        style={{ display: "flex", alignItems: "center", gap: 3, padding: "4px 8px", flexShrink: 0 }}
       >
         <SkipForward size={15} />
         <span className="fs-kbd" style={{ fontSize: 9 }}>N</span>
@@ -116,13 +123,13 @@ export default function PlayBar({
         className="fs-btn-ghost"
         title="Replay / Restart Simulation (R / Shift+F5)"
         onClick={onRestart}
-        style={{ display: "flex", alignItems: "center", gap: 3, padding: "4px 8px" }}
+        style={{ display: "flex", alignItems: "center", gap: 3, padding: "4px 8px", flexShrink: 0 }}
       >
         <RotateCcw size={15} />
         <span className="fs-kbd" style={{ fontSize: 9 }}>R</span>
       </button>
 
-      <span className="fs-sep" />
+      <span className="fs-sep" style={{ flexShrink: 0 }} />
 
       <div
         title="Run: interactive, pauses at undecided branches. Demo: timed hops, loops forever."
@@ -133,6 +140,7 @@ export default function PlayBar({
           border: "1px solid var(--border)",
           borderRadius: 999,
           padding: 2,
+          flexShrink: 0,
         }}
       >
         {[
@@ -150,6 +158,7 @@ export default function PlayBar({
               borderRadius: 999,
               background: mode === m ? "var(--accent)" : "transparent",
               color: mode === m ? "#ffffff" : "var(--muted)",
+              flexShrink: 0,
             }}
           >
             {label}
@@ -172,6 +181,7 @@ export default function PlayBar({
             background: "rgba(245, 158, 11, 0.14)",
             border: "1px solid rgba(245, 158, 11, 0.4)",
             whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           <Repeat size={11} />
@@ -185,16 +195,32 @@ export default function PlayBar({
           value={intervalMs}
           onChange={(e) => onInterval && onInterval(+e.target.value)}
           title="Time between hops (travel time default)"
-          style={{ fontSize: 11, padding: "3px 6px" }}
+          style={{
+            fontSize: 11,
+            padding: "4px 24px 4px 8px",
+            width: "auto",
+            minWidth: 70,
+            cursor: "pointer",
+            flexShrink: 0,
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            background: "var(--panel-solid)",
+            color: "var(--text)",
+            pointerEvents: "auto",
+          }}
         >
-          {![1000, 2000, 3000, 5000, 10000].includes(intervalMs) && (
+          {![200, 400, 600, 800, 1000, 1500, 2000, 3000, 5000].includes(intervalMs) && (
             <option value={intervalMs}>{(intervalMs / 1000).toFixed(1)}s</option>
           )}
-          <option value={1000}>1s</option>
-          <option value={2000}>2s</option>
-          <option value={3000}>3s</option>
-          <option value={5000}>5s</option>
-          <option value={10000}>10s</option>
+          <option value={200}>0.2s</option>
+          <option value={400}>0.4s</option>
+          <option value={600}>0.6s</option>
+          <option value={800}>0.8s</option>
+          <option value={1000}>1.0s</option>
+          <option value={1500}>1.5s</option>
+          <option value={2000}>2.0s</option>
+          <option value={3000}>3.0s</option>
+          <option value={5000}>5.0s</option>
         </select>
       )}
 
@@ -207,10 +233,11 @@ export default function PlayBar({
             padding: "3px 10px",
             borderRadius: 999,
             background: "var(--accent-light)",
-            maxWidth: 140,
+            maxWidth: 160,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
           title={`Scenario: ${scenarioName}`}
         >
@@ -226,11 +253,12 @@ export default function PlayBar({
             : loopExited || awaiting
             ? "var(--accent)"
             : "var(--muted)",
-          minWidth: 44,
           textAlign: "center",
           fontFamily: "'JetBrains Mono', monospace",
-          display: "flex",
+          display: "inline-flex",
           alignItems: "center",
+          whiteSpace: "nowrap",
+          flexShrink: 0,
           gap: 4,
           background: loopDetected
             ? "rgba(245, 158, 11, 0.12)"
@@ -276,7 +304,7 @@ export default function PlayBar({
       </span>
 
       {mode === "run" && (
-        <>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
           <input
             type="range"
             min={0.25}
@@ -285,7 +313,7 @@ export default function PlayBar({
             value={speed}
             onChange={(e) => onSpeed(+e.target.value)}
             title="Playback speed (+ / -)"
-            style={{ width: 75, margin: "0 4px" }}
+            style={{ width: 75, margin: "0 4px", flexShrink: 0 }}
           />
           <span
             style={{
@@ -294,14 +322,16 @@ export default function PlayBar({
               color: "var(--muted)",
               minWidth: 28,
               fontFamily: "'JetBrains Mono', monospace",
+              flexShrink: 0,
+              whiteSpace: "nowrap",
             }}
           >
             {speed}×
           </span>
-        </>
+        </div>
       )}
 
-      <span className="fs-sep" />
+      <span className="fs-sep" style={{ flexShrink: 0 }} />
 
       {/* Simulation Video Recording (WebM) */}
       {onToggleRecord && (
@@ -322,6 +352,7 @@ export default function PlayBar({
             background: isRecording ? "rgba(239, 68, 68, 0.16)" : undefined,
             borderColor: isRecording ? "#ef4444" : undefined,
             color: isRecording ? "#ef4444" : "var(--text)",
+            flexShrink: 0,
           }}
         >
           <span
@@ -332,6 +363,7 @@ export default function PlayBar({
               background: "#ef4444",
               display: "inline-block",
               boxShadow: isRecording ? "0 0 8px #ef4444" : undefined,
+              flexShrink: 0,
             }}
           />
           <span
@@ -339,6 +371,7 @@ export default function PlayBar({
               fontSize: 11,
               fontWeight: 700,
               fontFamily: isRecording ? "'JetBrains Mono', monospace" : undefined,
+              whiteSpace: "nowrap",
             }}
           >
             {isRecording
@@ -352,6 +385,7 @@ export default function PlayBar({
         className="fs-btn-ghost"
         title="Scenarios"
         onClick={onToggleScenarios}
+        style={{ flexShrink: 0 }}
       >
         <ListChecks size={15} />
       </button>
@@ -359,11 +393,11 @@ export default function PlayBar({
         className={`fs-btn-ghost ${simMode ? "on" : ""}`}
         title={simMode ? "Exit simulation view (S / Esc)" : "Simulation view (S)"}
         onClick={onToggleSim}
-        style={{ color: simMode ? "var(--accent)" : undefined }}
+        style={{ color: simMode ? "var(--accent)" : undefined, flexShrink: 0 }}
       >
         <Presentation size={15} />
       </button>
-      <button className="fs-btn-ghost" title="Close playback (Esc)" onClick={onClose}>
+      <button className="fs-btn-ghost" title="Close playback (Esc)" onClick={onClose} style={{ flexShrink: 0 }}>
         <X size={15} />
       </button>
     </div>

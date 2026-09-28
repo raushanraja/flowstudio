@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { Repeat } from "lucide-react";
 import { edgeGeom } from "../lib/geometry.js";
 import { NodeShape } from "./Shapes.jsx";
 
@@ -44,6 +45,44 @@ export default function PlaybackOverlay({
   const choicesNode =
     (token?.edge && activeEdge && byId[activeEdge.to]) || activeNode;
   const services = s?.services ?? NO_SERVICES;
+  // Edges that belong to each service's component, for the marching "flow"
+  // overlay that shows the service is continuously processing.
+  const serviceEdgeIds = useMemo(() => {
+    const map = new Map();
+    const allNodes = Object.values(byId);
+    for (const svc of services) {
+      const root = byId[svc.rootId];
+      const ids = [];
+      if (root) {
+        if (root.type === "group") {
+          const scope = new Set(
+            allNodes
+              .filter((c) => c.parentId === root.id && c.type !== "group")
+              .map((c) => c.id),
+          );
+          for (const e of edges) {
+            if (scope.has(e.from) && scope.has(e.to)) ids.push(e.id);
+          }
+        } else {
+          const seen = new Set([root.id]);
+          const queue = [root.id];
+          while (queue.length) {
+            const cur = queue.shift();
+            for (const e of edges) {
+              if (e.from !== cur) continue;
+              ids.push(e.id);
+              if (!seen.has(e.to)) {
+                seen.add(e.to);
+                queue.push(e.to);
+              }
+            }
+          }
+        }
+      }
+      map.set(svc.id, ids);
+    }
+    return map;
+  }, [services, edges, byId]);
   const tokenRef = useRef(null);
   const serviceRefs = useRef(new Map());
   const trailKey = useRef("");
@@ -140,6 +179,29 @@ export default function PlaybackOverlay({
           />
         </g>
       )}
+      {/* Continuous flow on every edge of a running service component. */}
+      {services.map((svc) => (
+        <g key={`flow-${svc.id}`} pointerEvents="none">
+          {(serviceEdgeIds.get(svc.id) || []).map((id) => {
+            const e = edges.find((x) => x.id === id);
+            const g = e ? edgeGeom(e, byId) : null;
+            if (!g) return null;
+            return (
+              <path
+                key={id}
+                d={g.d}
+                pathLength={1}
+                fill="none"
+                stroke={SERVICE_COLOR}
+                strokeWidth={2.5}
+                strokeDasharray="0.05 0.95"
+                opacity={0.45}
+                className="fs-svc-pulse"
+              />
+            );
+          })}
+        </g>
+      ))}
       {services.map((svc) => {
         const n = byId[svc.activeNode];
         if (!n) return null;
@@ -154,6 +216,52 @@ export default function PlaybackOverlay({
                 dashed: true,
               }}
             />
+          </g>
+        );
+      })}
+      {/* Breathing outline on a service's frame/group + a running chip. */}
+      {services.map((svc) => {
+        const root = byId[svc.rootId];
+        if (!root) return null;
+        const cx = root.x + root.w / 2;
+        const y = root.y - 28;
+        return (
+          <g key={`root-${svc.id}`} pointerEvents="none">
+            {root.type === "group" && (
+              <g className="fs-svc-glow">
+                <NodeShape
+                  n={{
+                    ...root,
+                    fill: `${SERVICE_COLOR}0d`,
+                    stroke: SERVICE_COLOR,
+                    strokeWidth: 2.5,
+                    dashed: true,
+                  }}
+                />
+              </g>
+            )}
+            <g className="fs-svc-glow">
+              <rect
+                x={cx - 40}
+                y={y - 10}
+                width={80}
+                height={19}
+                rx={9.5}
+                fill={SERVICE_COLOR}
+              />
+              <Repeat x={cx - 35} y={y - 5} size={11} color="#ffffff" strokeWidth={2.4} />
+              <text
+                x={cx + 7}
+                y={y + 4}
+                textAnchor="middle"
+                fontSize={9.5}
+                fontWeight={700}
+                fontFamily="'JetBrains Mono', monospace"
+                fill="#ffffff"
+              >
+                running
+              </text>
+            </g>
           </g>
         );
       })}
