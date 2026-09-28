@@ -117,4 +117,5 @@ npm run preview
 | `,` / `.` | Step back / Step forward in simulation |
 | `V` | Switch to Select tool |
 | `H` | Switch to Pan tool |
+| `R` / `U` / `P` / `D` / `O` / `B` / `T` / `G` | Add Rectangle / Rounded / Pill / Diamond / Ellipse / Database / Text / Frame (placed around the last canvas click) |
 

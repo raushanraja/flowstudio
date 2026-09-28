@@ -3,6 +3,7 @@ import {
   THEMES,
   PALETTES,
   GROUP_STYLES,
+  SHAPE_DEFS,
   nextTheme,
   isTheme,
   rethemeDiagram,
@@ -33,6 +34,19 @@ import ScenariosPanel from "./components/ScenariosPanel.jsx";
 
 const INITIAL = sampleDiagram();
 const STORAGE_KEY = "fs-document";
+const NODE_SIZES = {
+  rect: [180, 56],
+  rounded: [180, 56],
+  pill: [160, 48],
+  diamond: [170, 90],
+  ellipse: [170, 80],
+  cylinder: [150, 90],
+  text: [160, 40],
+  group: [280, 180],
+};
+const SHAPE_BY_KEY = Object.fromEntries(
+  SHAPE_DEFS.map((s) => [s.key.toLowerCase(), s.type]),
+);
 
 function loadDocument() {
   try {
@@ -135,6 +149,7 @@ export default function App() {
   const redoStack = useRef([]);
   const coalesce = useRef({});
   const clipboard = useRef(null);
+  const lastCanvasClick = useRef(null);
 
   /* ---------- playback ---------- */
   const [playback, setPlayback] = useState(null);
@@ -401,16 +416,7 @@ export default function App() {
   function makeNode(type, x, y) {
     const pal = PALETTES[theme] || PALETTES.light;
     const c = pal[nodesRef.current.length % pal.length];
-    const dims = {
-      rect: [180, 56],
-      rounded: [180, 56],
-      pill: [160, 48],
-      diamond: [170, 90],
-      ellipse: [170, 80],
-      cylinder: [150, 90],
-      text: [160, 40],
-      group: [280, 180],
-    }[type];
+    const dims = NODE_SIZES[type] || [180, 56];
     const base = {
       id: uid(),
       type,
@@ -451,11 +457,68 @@ export default function App() {
     };
   }
   function addNode(type) {
+    const [w, h] = NODE_SIZES[type] || [180, 56];
+    const nodes = nodesRef.current;
     const r = wrapRef.current.getBoundingClientRect();
     const c = camRef.current;
-    const x = (r.width / 2 - c.x) / c.zoom - 90 + Math.random() * 40 - 20,
-      y = (r.height / 2 - c.y) / c.zoom - 28 + Math.random() * 40 - 20;
-    const n = makeNode(type, sn(x), sn(y));
+    const GAP = 24;
+    const view = {
+      x: -c.x / c.zoom,
+      y: -c.y / c.zoom,
+      w: r.width / c.zoom,
+      h: r.height / c.zoom,
+    };
+    const inView = (x, y) =>
+      x + w > view.x &&
+      x < view.x + view.w &&
+      y + h > view.y &&
+      y < view.y + view.h;
+    const collides = (x, y) =>
+      nodes.some(
+        (n) =>
+          x < n.x + n.w + GAP &&
+          x + w + GAP > n.x &&
+          y < n.y + n.h + GAP &&
+          y + h + GAP > n.y,
+      );
+
+    // Anchor at the last canvas click (centered on the cursor), falling back
+    // to the viewport center before the first click.
+    const click = lastCanvasClick.current;
+    let ax, ay;
+    if (click) {
+      ax = click.x - w / 2;
+      ay = click.y - h / 2;
+    } else {
+      ax = (r.width / 2 - c.x) / c.zoom - w / 2;
+      ay = (r.height / 2 - c.y) / c.zoom - h / 2;
+    }
+
+    // Spiral outward from the anchor on a collision-free grid, preferring
+    // spots that stay inside the current viewport.
+    const stepX = w + GAP;
+    const stepY = h + GAP;
+    const candidates = [];
+    for (let ring = 0; ring <= 12; ring++) {
+      for (let i = -ring; i <= ring; i++) {
+        for (let j = -ring; j <= ring; j++) {
+          if (Math.max(Math.abs(i), Math.abs(j)) !== ring) continue;
+          const x = sn(ax + i * stepX);
+          const y = sn(ay + j * stepY);
+          candidates.push({ x, y, d: i * i + j * j, visible: inView(x, y) });
+        }
+      }
+    }
+    candidates.sort(
+      (a, b) => Number(b.visible) - Number(a.visible) || a.d - b.d,
+    );
+    const spot =
+      candidates.find((p) => !collides(p.x, p.y)) || {
+        x: sn(ax),
+        y: sn(ay),
+      };
+
+    const n = makeNode(type, spot.x, spot.y);
     pushUndo(serialize());
     setNodes((ns) => [...ns, n]);
     setSel({ nodes: [n.id], edges: [] });
@@ -1310,6 +1373,17 @@ export default function App() {
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
+  // Remember where the user last clicked on the canvas so new shapes land
+  // around that spot instead of at the viewport center.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onDown = (e) => {
+      if (e.button === 0) lastCanvasClick.current = worldFromEvent(e);
+    };
+    svg.addEventListener("mousedown", onDown);
+    return () => svg.removeEventListener("mousedown", onDown);
+  }, []);
 
   /* ---------- keyboard ---------- */
   const actionsRef = useRef({});
@@ -1326,6 +1400,7 @@ export default function App() {
     pasteSel,
     selectAll,
     nudgeSel,
+    addNode,
     escape: () => {
       if (simModeRef.current) {
         setSimMode(false);
@@ -1468,6 +1543,9 @@ export default function App() {
         setTool("pan");
       } else if (!mod && k === "s") {
         A.toggleSim();
+      } else if (!mod && !simModeRef.current && SHAPE_BY_KEY[k]) {
+        e.preventDefault();
+        A.addNode(SHAPE_BY_KEY[k]);
       }
     };
     window.addEventListener("keydown", h);
