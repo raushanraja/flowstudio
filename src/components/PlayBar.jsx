@@ -8,6 +8,7 @@ import {
   ListChecks,
   Presentation,
   AlertTriangle,
+  Repeat,
 } from "lucide-react";
 
 export default function PlayBar({
@@ -25,6 +26,7 @@ export default function PlayBar({
   onInterval,
   laps = 0,
   awaiting,
+  serviceCount = 0,
   onPlay,
   onPause,
   onStepFwd,
@@ -151,6 +153,28 @@ export default function PlayBar({
           </button>
         ))}
       </div>
+
+      {serviceCount > 0 && (
+        <span
+          title={`${serviceCount} background service${serviceCount > 1 ? "s" : ""} running on their own interval`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            fontSize: 10,
+            fontWeight: 700,
+            color: "#b45309",
+            padding: "3px 8px",
+            borderRadius: 999,
+            background: "rgba(245, 158, 11, 0.14)",
+            border: "1px solid rgba(245, 158, 11, 0.4)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <Repeat size={11} />
+          {serviceCount} bg
+        </span>
+      )}
 
       {mode === "demo" && (
         <select

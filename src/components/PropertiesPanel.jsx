@@ -15,6 +15,7 @@ import {
   X,
   RotateCcw,
   Sparkles,
+  Repeat,
 } from "lucide-react";
 import {
   SHAPE_DEFS,
@@ -688,6 +689,51 @@ export default function PropertiesPanel({
               }
             />
           </label>
+          <label
+            className="fs-lbl"
+            style={{
+              flexDirection: "row",
+              gap: 6,
+              cursor: "pointer",
+              alignItems: "center",
+              fontSize: 11,
+            }}
+            title="Runs its own token on an interval alongside the main flow"
+          >
+            <input
+              type="checkbox"
+              checked={!!single.isService}
+              onChange={(e) =>
+                doBatchPatch({ isService: e.target.checked }, "svc")
+              }
+            />
+            <Repeat size={12} style={{ color: "#f59e0b" }} />
+            Background service
+          </label>
+          {single.isService && (
+            <label className="fs-lbl" style={{ fontSize: 11 }}>
+              Service Interval (ms)
+              <input
+                className="fs-inp"
+                type="number"
+                min={0}
+                step={100}
+                value={single.serviceIntervalMs ?? ""}
+                placeholder="auto (hop interval)"
+                onChange={(e) =>
+                  doBatchPatch(
+                    {
+                      serviceIntervalMs:
+                        e.target.value === ""
+                          ? undefined
+                          : Math.max(0, +e.target.value),
+                    },
+                    "svcint",
+                  )
+                }
+              />
+            </label>
+          )}
 
           {/* Action Buttons */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>

@@ -46,6 +46,11 @@ export function normalizeDiagram(data) {
         Number.isFinite(+n.dwellMs) && +n.dwellMs >= 0
           ? +n.dwellMs
           : undefined,
+      isService: !!n.isService,
+      serviceIntervalMs:
+        Number.isFinite(+n.serviceIntervalMs) && +n.serviceIntervalMs > 0
+          ? +n.serviceIntervalMs
+          : undefined,
     });
   }
   const idSet = new Set(nodes.map((n) => n.id));

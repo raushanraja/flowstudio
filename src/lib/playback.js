@@ -39,6 +39,10 @@ function topLeft(a, b) {
  *          or the first edge, dead ends hold and restart forever, and each
  *          restart increments `laps`.
  *
+ * Nodes flagged `isService` additionally spawn their own token (see
+ * `state.services`) that keeps ticking on its own interval in either mode —
+ * e.g. a background job cycle running alongside the main flow.
+ *
  * State is immutable-by-convention: step/choose/back/reset produce a new
  * state snapshot and notify listeners. The engine is pure (no DOM, no
  * timers) — the UI owns the rAF loop and calls step(dt, speed).
@@ -101,7 +105,31 @@ export function createPlayback({
       .sort(topLeft)
       .map((n) => n.id)[0];
 
-  const freshState = (laps = 0) => ({
+  // Background services: nodes flagged `isService` get their own token that
+  // keeps ticking on an interval, independent of the main token's mode.
+  const serviceDefs = nodes
+    .filter((n) => n.type !== "group" && n.isService)
+    .map((n) => ({
+      nodeId: n.id,
+      interval:
+        Number.isFinite(+n.serviceIntervalMs) && +n.serviceIntervalMs > 0
+          ? +n.serviceIntervalMs
+          : hopMs,
+    }));
+  const freshServices = () =>
+    serviceDefs.map((svc, i) => ({
+      id: i + 1,
+      nodeId: svc.nodeId,
+      interval: svc.interval,
+      activeNode: svc.nodeId,
+      edge: null,
+      t: 0,
+      hold: 0,
+      restartPending: false,
+      steps: 0,
+      laps: 0,
+    }));
+  const freshMain = (laps = 0) => ({
     tokens: [{ id: 0, edge: null, t: 0 }],
     activeNode: start || null,
     steps: 0,
@@ -116,13 +144,64 @@ export function createPlayback({
     loopExited: false,
     loopNode: null,
   });
-  let state = freshState();
+  // Rebuilding the main token (laps, stepping back) must not disturb
+  // background services mid-flight.
+  let state = { ...freshMain(), services: freshServices() };
   const listeners = new Set();
   const emit = () => {
     for (const fn of listeners) fn(state);
   };
 
   const edgeById = (id) => realEdges.find((e) => e.id === id);
+
+  // One service tick: interval-based travel, scenario choice or first edge,
+  // dead ends hold and restart the service loop. Never awaits.
+  const stepService = (svc, dt) => {
+    if (svc.hold > 0) {
+      svc.hold -= dt;
+      if (svc.hold > 0) return;
+      svc.hold = 0;
+      if (svc.restartPending) {
+        svc.restartPending = false;
+        svc.activeNode = svc.nodeId;
+        svc.edge = null;
+        svc.t = 0;
+        svc.laps++;
+        return;
+      }
+    }
+    if (!svc.edge) {
+      const outs = outgoing.get(svc.activeNode) || [];
+      const edge = pref[svc.activeNode] || outs[0];
+      if (!edge) {
+        svc.restartPending = true;
+        svc.hold = byId.get(svc.activeNode)?.dwellMs ?? svc.interval;
+        return;
+      }
+      svc.edge = edge;
+      svc.t = 0;
+      return;
+    }
+    const e = edgeById(svc.edge);
+    if (!e) {
+      svc.edge = null;
+      return;
+    }
+    const duration = e.travelMs ?? svc.interval;
+    svc.t += dt / duration;
+    if (svc.t < 1) return;
+    svc.edge = null;
+    svc.t = 0;
+    svc.steps++;
+    svc.activeNode = e.to;
+    const outs = outgoing.get(e.to) || [];
+    if (!outs.length) {
+      svc.restartPending = true;
+      svc.hold = byId.get(e.to)?.dwellMs ?? svc.interval;
+    } else {
+      svc.hold = byId.get(e.to)?.dwellMs ?? 0;
+    }
+  };
 
   // Node the next branch decision belongs to: during travel it is the
   // destination being traveled to.
@@ -136,7 +215,7 @@ export function createPlayback({
   };
 
   const restartLap = () => {
-    state = freshState(state.laps + 1);
+    state = { ...freshMain(state.laps + 1), services: state.services };
     emit();
   };
 
@@ -247,6 +326,9 @@ export function createPlayback({
 
     // Advance continuous playback; dt in ms already scaled by speed.
     step(dt) {
+      // Background services tick regardless of the main token's state
+      // (awaiting a branch, holding, even after the run is done).
+      for (const svc of state.services) stepService(svc, dt);
       if (state.done) return;
       const token = state.tokens[0];
       if (state.hold > 0) {
@@ -336,7 +418,7 @@ export function createPlayback({
       if (state.steps === 0) return;
       const target = Math.max(0, state.steps - 1);
       const history = state.history;
-      state = freshState(state.laps);
+      state = { ...freshMain(state.laps), services: state.services };
       for (let i = 0; i < target; i++) {
         const h = history[i];
         if (!h) break;
@@ -352,7 +434,7 @@ export function createPlayback({
     },
 
     reset() {
-      state = freshState();
+      state = { ...freshMain(), services: freshServices() };
       emit();
     },
 

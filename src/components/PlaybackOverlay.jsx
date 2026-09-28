@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { edgeGeom } from "../lib/geometry.js";
 import { NodeShape } from "./Shapes.jsx";
 
+const SERVICE_COLOR = "#f59e0b";
+const NO_SERVICES = [];
+
 function restoreTrailStrokes(svg) {
   if (!svg) return;
   svg.querySelectorAll("[data-edge-path]").forEach((p) => {
@@ -40,38 +43,45 @@ export default function PlaybackOverlay({
       : [];
   const choicesNode =
     (token?.edge && activeEdge && byId[activeEdge.to]) || activeNode;
+  const services = s?.services ?? NO_SERVICES;
   const tokenRef = useRef(null);
+  const serviceRefs = useRef(new Map());
   const trailKey = useRef("");
 
   // Token position — imperative per frame
   useEffect(() => {
-    const el = tokenRef.current;
-    if (!el || !s) return;
-    let x = 0,
-      y = 0;
-    if (token?.edge) {
-      const path = svgRef?.current?.querySelector(
-        `[data-edge-path="${token.edge}"]`,
-      );
-      if (path && typeof path.getTotalLength === "function") {
-        const len = path.getTotalLength();
-        const p = path.getPointAtLength(Math.min(token.t, 0.999) * len);
-        x = p.x;
-        y = p.y;
+    const place = (el, tk, node) => {
+      if (!el) return;
+      let x = 0,
+        y = 0;
+      if (tk?.edge) {
+        const path = svgRef?.current?.querySelector(
+          `[data-edge-path="${tk.edge}"]`,
+        );
+        if (path && typeof path.getTotalLength === "function") {
+          const len = path.getTotalLength();
+          const p = path.getPointAtLength(Math.min(tk.t, 0.999) * len);
+          x = p.x;
+          y = p.y;
+          el.style.opacity = 1;
+        } else {
+          el.style.opacity = 0;
+        }
+      } else if (node) {
+        x = node.x + node.w / 2;
+        y = node.y + node.h / 2;
         el.style.opacity = 1;
       } else {
         el.style.opacity = 0;
       }
-    } else if (activeNode) {
-      x = activeNode.x + activeNode.w / 2;
-      y = activeNode.y + activeNode.h / 2;
-      el.style.opacity = 1;
-    } else {
-      el.style.opacity = 0;
+      el.setAttribute("cx", x);
+      el.setAttribute("cy", y);
+    };
+    place(tokenRef.current, token, activeNode);
+    for (const svc of services) {
+      place(serviceRefs.current.get(svc.id), svc, byId[svc.activeNode]);
     }
-    el.setAttribute("cx", x);
-    el.setAttribute("cy", y);
-  }, [frame, playback, byId, svgRef, s, token, activeNode]);
+  }, [frame, playback, byId, svgRef, s, token, activeNode, services]);
 
   // Traveled trail: tint the main edge paths accent-colored.
   useEffect(() => {
@@ -130,6 +140,23 @@ export default function PlaybackOverlay({
           />
         </g>
       )}
+      {services.map((svc) => {
+        const n = byId[svc.activeNode];
+        if (!n) return null;
+        return (
+          <g key={svc.id} opacity={0.85} pointerEvents="none">
+            <NodeShape
+              n={{
+                ...n,
+                fill: `${SERVICE_COLOR}12`,
+                stroke: SERVICE_COLOR,
+                strokeWidth: 2,
+                dashed: true,
+              }}
+            />
+          </g>
+        );
+      })}
       {s.awaiting && choicesNode && (
         <g pointerEvents="none">
           <rect
@@ -202,6 +229,22 @@ export default function PlaybackOverlay({
         opacity={0}
         style={{ filter: `drop-shadow(0 0 4px ${T?.accent || "#6366f1"})` }}
       />
+      {services.map((svc) => (
+        <circle
+          key={svc.id}
+          ref={(el) => {
+            if (el) serviceRefs.current.set(svc.id, el);
+            else serviceRefs.current.delete(svc.id);
+          }}
+          data-service-token={svc.id}
+          r={4.5}
+          fill={SERVICE_COLOR}
+          stroke={T?.bg || "#ffffff"}
+          strokeWidth={2}
+          opacity={0}
+          style={{ filter: `drop-shadow(0 0 3px ${SERVICE_COLOR})` }}
+        />
+      ))}
     </g>
   );
 }

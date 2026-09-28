@@ -15,6 +15,7 @@ import {
   Layers,
   Square,
   Workflow,
+  Repeat,
 } from "lucide-react";
 
 export default function Canvas({
@@ -324,6 +325,20 @@ export default function Canvas({
                     >
                       {n.badge}
                     </text>
+                  </g>
+                )}
+
+                {/* Background service indicator */}
+                {n.isService && (
+                  <g pointerEvents="none" transform={`translate(${n.x + n.w - 2} ${n.y + 2})`}>
+                    <circle r={9} fill={T.bg} stroke="#f59e0b" strokeWidth={2} />
+                    <Repeat
+                      x={-6}
+                      y={-6}
+                      size={12}
+                      color="#f59e0b"
+                      strokeWidth={2.2}
+                    />
                   </g>
                 )}
 

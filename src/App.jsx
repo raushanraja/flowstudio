@@ -2089,6 +2089,7 @@ export default function App() {
           onInterval={setDemoIntervalMs}
           laps={playback.snapshot().laps || 0}
           awaiting={playback.snapshot().awaiting}
+          serviceCount={playback.snapshot().services?.length || 0}
           onPlay={startPlayback}
           onPause={stopLoop}
           onStepFwd={stepFwd}
