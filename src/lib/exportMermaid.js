@@ -50,6 +50,7 @@ export function exportMermaid({
         return `${indent}${mId}[("${label}")]`;
       case "rect":
       case "text":
+      case "textarea":
       default:
         return `${indent}${mId}["${label}"]`;
     }

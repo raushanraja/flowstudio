@@ -143,6 +143,8 @@ function renderShapeElement(n) {
       const pathD = `M ${x} ${topCy} A ${rx} ${ryFmt} 0 0 1 ${fmt(n.x + n.w)} ${topCy} L ${fmt(n.x + n.w)} ${fmt(n.y + n.h - ry)} A ${rx} ${ryFmt} 0 0 1 ${x} ${fmt(n.y + n.h - ry)} Z`;
       return `<g class="fs-node-shape fs-node-shape-cylinder"><path class="fs-cylinder-body" d="${pathD}" fill="${n.fill}" stroke="${n.stroke}" stroke-width="${sw}"${dashed} /><ellipse class="fs-cylinder-cap" cx="${cx}" cy="${topCy}" rx="${rx}" ry="${ryFmt}" fill="${n.fill}" stroke="${n.stroke}" stroke-width="${sw}"${dashed} /></g>`;
     }
+    case "textarea":
+      return `<rect class="fs-node-shape fs-node-shape-textarea" x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${n.fill}" stroke="${n.stroke}" stroke-width="${sw}"${dashed} />`;
     case "text":
       return `<rect class="fs-node-shape fs-node-shape-text" x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${n.fill}" stroke="${n.stroke}" stroke-width="${sw}"${dashed} />`;
     case "rect":
@@ -152,26 +154,47 @@ function renderShapeElement(n) {
 }
 
 /**
- * Render multi-line node text
+ * Render multi-line node text with alignment & vertical positioning
  */
 function renderNodeText(n, T) {
-  const text = (n.text || "").trim();
-  if (!text) return "";
-  const lines = text.split("\n");
-  const fz = n.fontSize || 13;
-  const lh = fz * 1.25;
-  const startY = n.y + n.h / 2 - ((lines.length - 1) * lh) / 2;
-  const centerX = fmt(n.x + n.w / 2);
+  if (n.text == null || n.text === "") return "";
+  const lines = n.text.split("\n");
+  const fz = n.fontSize || 14;
+  const lh = fz * 1.35;
+  const align = n.textAlign || (n.type === "textarea" ? "left" : "center");
+  const vAlign = n.verticalAlign || (n.type === "textarea" ? "top" : "middle");
+  const padX = n.type === "textarea" || n.type === "text" ? 14 : 10;
+  const padY = n.type === "textarea" || n.type === "text" ? 14 : 10;
+  const totalH = (lines.length - 1) * lh;
 
+  let startY = n.y + n.h / 2 - totalH / 2;
+  if (vAlign === "top") startY = n.y + padY + lh / 2;
+  else if (vAlign === "bottom") startY = n.y + n.h - padY - totalH - lh / 2;
+
+  let anchor = "middle";
+  let x = fmt(n.x + n.w / 2);
+  if (align === "left" || align === "justify") {
+    anchor = "start";
+    x = fmt(n.x + padX);
+  } else if (align === "right") {
+    anchor = "end";
+    x = fmt(n.x + n.w - padX);
+  }
+
+  const availW = fmt(Math.max(10, n.w - padX * 2));
   const tspans = lines
-    .map(
-      (l, i) =>
-        `<tspan class="fs-node-tspan" x="${centerX}" y="${fmt(startY + i * lh)}" dominant-baseline="middle">${escapeXml(l)}</tspan>`
-    )
+    .map((l, i) => {
+      const isJustified =
+        align === "justify" && i < lines.length - 1 && l.trim().includes(" ");
+      const justifyAttr = isJustified
+        ? ` textLength="${availW}" lengthAdjust="spacing"`
+        : "";
+      return `<tspan class="fs-node-tspan" x="${x}" y="${fmt(startY + i * lh)}"${justifyAttr} dominant-baseline="middle">${escapeXml(l)}</tspan>`;
+    })
     .join("");
 
   const textColor = getEffectiveTextColor(n, T);
-  return `<text class="fs-node-text" text-anchor="middle" fill="${textColor}" font-size="${fmt(fz)}" font-family="${MONO}">${tspans}</text>`;
+  return `<text class="fs-node-text" text-anchor="${anchor}" fill="${textColor}" font-size="${fmt(fz)}" font-family="${MONO}">${tspans}</text>`;
 }
 
 /**

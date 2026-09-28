@@ -4,11 +4,13 @@ import {
   CopyPlus,
   Wand2,
   AlignLeft,
-  AlignCenterVertical,
+  AlignCenter,
   AlignRight,
+  AlignJustify,
   AlignStartVertical,
-  AlignCenterHorizontal,
+  AlignCenterVertical,
   AlignEndVertical,
+  AlignCenterHorizontal,
   AlignHorizontalSpaceBetween,
   AlignVerticalSpaceBetween,
   Unlink,
@@ -21,6 +23,7 @@ import {
   Spline,
   CornerDownRight,
   Minus,
+  Scaling,
 } from "lucide-react";
 import {
   SHAPE_DEFS,
@@ -636,13 +639,118 @@ export default function PropertiesPanel({
             Label Text
             <textarea
               className="fs-inp"
-              rows={2}
+              rows={3}
               value={single.text || ""}
+              style={{
+                fontFamily: "var(--mono, monospace)",
+                fontSize: 12,
+                whiteSpace: single.type === "textarea" ? "pre" : "normal",
+                lineHeight: 1.35,
+              }}
+              placeholder={single.type === "textarea" ? "Enter multi-line text (Enter for newline)..." : "Label text"}
               onChange={(e) =>
                 patchSelNodes({ text: e.target.value }, "ntext")
               }
             />
           </label>
+
+          {/* Text Alignment */}
+          <div className="fs-lbl">
+            Text Alignment
+            <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+              {[
+                ["left", AlignLeft, "Align Left"],
+                ["center", AlignCenter, "Align Center"],
+                ["right", AlignRight, "Align Right"],
+                ["justify", AlignJustify, "Justify Text"],
+              ].map(([mode, Icon, title]) => {
+                const currentAlign =
+                  single.textAlign || (single.type === "textarea" ? "left" : "center");
+                const isSelected = currentAlign === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`fs-btn-ghost ${isSelected ? "on" : ""}`}
+                    title={title}
+                    style={{
+                      flex: 1,
+                      padding: "5px 4px",
+                      fontSize: 11,
+                      justifyContent: "center",
+                      border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
+                      background: isSelected ? "var(--accent-light)" : "transparent",
+                      color: isSelected ? "var(--accent)" : "var(--text)",
+                    }}
+                    onClick={() => doBatchPatch({ textAlign: mode }, "text_align")}
+                  >
+                    <Icon size={14} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Vertical Alignment */}
+          <div className="fs-lbl">
+            Vertical Alignment
+            <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+              {[
+                ["top", AlignStartVertical, "Top"],
+                ["middle", AlignCenterVertical, "Middle"],
+                ["bottom", AlignEndVertical, "Bottom"],
+              ].map(([mode, Icon, title]) => {
+                const currentVAlign =
+                  single.verticalAlign || (single.type === "textarea" ? "top" : "middle");
+                const isSelected = currentVAlign === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`fs-btn-ghost ${isSelected ? "on" : ""}`}
+                    title={title}
+                    style={{
+                      flex: 1,
+                      padding: "5px 4px",
+                      fontSize: 11,
+                      gap: 4,
+                      justifyContent: "center",
+                      border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
+                      background: isSelected ? "var(--accent-light)" : "transparent",
+                      color: isSelected ? "var(--accent)" : "var(--text)",
+                    }}
+                    onClick={() => doBatchPatch({ verticalAlign: mode }, "valign")}
+                  >
+                    <Icon size={13} />
+                    <span>{title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Auto-Fit Box to Text Button */}
+          <button
+            type="button"
+            className="fs-btn"
+            style={{ width: "100%", justifyContent: "center", gap: 6, fontSize: 11, padding: "6px 8px" }}
+            title="Automatically resize width and height to fit all text content"
+            onClick={() => {
+              const lines = (single.text || "").split("\n");
+              const maxLen = Math.max(0, ...lines.map((l) => l.length));
+              const fz = single.fontSize || 14;
+              const charW = fz * 0.62;
+              const lh = fz * 1.35;
+              const padX = single.type === "textarea" || single.type === "text" ? 28 : 36;
+              const padY = single.type === "textarea" || single.type === "text" ? 28 : 28;
+              const fitW = Math.max(80, Math.round(maxLen * charW + padX));
+              const fitH = Math.max(36, Math.round(lines.length * lh + padY));
+              doBatchPatch({ w: fitW, h: fitH }, "autofit");
+            }}
+          >
+            <Scaling size={13} />
+            Auto-Fit Box to Text
+          </button>
           <div className="fs-row">
             <span className="fs-lbl">Badge / Tag</span>
             <input
@@ -939,6 +1047,36 @@ export default function PropertiesPanel({
                   </button>
                 </>
               )}
+            </div>
+          </div>
+
+          {/* Multi-node Text Alignment */}
+          <div className="fs-lbl">
+            Text Alignment (All Selected)
+            <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+              {[
+                ["left", AlignLeft, "Align Left"],
+                ["center", AlignCenter, "Align Center"],
+                ["right", AlignRight, "Align Right"],
+                ["justify", AlignJustify, "Justify Text"],
+              ].map(([mode, Icon, title]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className="fs-btn-ghost"
+                  title={title}
+                  style={{
+                    flex: 1,
+                    padding: "5px 4px",
+                    fontSize: 11,
+                    justifyContent: "center",
+                    border: "1px solid var(--border)",
+                  }}
+                  onClick={() => patchSelNodes({ textAlign: mode }, "text_align")}
+                >
+                  <Icon size={14} />
+                </button>
+              ))}
             </div>
           </div>
 

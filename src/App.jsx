@@ -53,6 +53,7 @@ const NODE_SIZES = {
   ellipse: [170, 80],
   cylinder: [150, 90],
   text: [160, 40],
+  textarea: [240, 110],
   group: [280, 180],
 };
 const SHAPE_BY_KEY = Object.fromEntries(
@@ -507,6 +508,18 @@ export default function App() {
         stroke: "transparent",
         textColor: T.text,
         text: "Text",
+      };
+    if (type === "textarea")
+      return {
+        ...base,
+        fill: "transparent",
+        stroke: T.border || "#3f3f46",
+        strokeWidth: 1.5,
+        dashed: true,
+        textColor: T.text,
+        textAlign: "left",
+        verticalAlign: "top",
+        text: "Text block...",
       };
     if (type === "group") {
       const gStyle = getGroupStyle(theme);
@@ -1867,11 +1880,11 @@ export default function App() {
             textColor: targetT.text,
           };
         }
-        if (n.type === "text") {
+        if (n.type === "text" || n.type === "textarea") {
           return {
             ...n,
-            fill: "transparent",
-            stroke: "transparent",
+            fill: n.fill === "transparent" || !n.fill ? "transparent" : n.fill,
+            stroke: n.type === "text" ? "transparent" : (n.stroke === "transparent" ? "transparent" : targetT.border),
             textColor: targetT.text,
           };
         }
@@ -2257,7 +2270,7 @@ export default function App() {
 
     setNodes((curr) =>
       curr.map((n) => {
-        if (n.type === "text") {
+        if (n.type === "text" || n.type === "textarea") {
           if (!n.textColor || n.textColor === prevT.text || getContrast(n.textColor, nextT.bg) < 3.0) {
             return { ...n, textColor: nextT.text };
           }
@@ -2388,9 +2401,23 @@ export default function App() {
           const n = byId[editing.id];
           if (n) {
             pushUndo(serialize());
+            const text = editing.value;
+            let sizePatch = {};
+            if (n.type === "textarea" || n.type === "text") {
+              const lines = (text || "").split("\n");
+              const maxLen = Math.max(0, ...lines.map((l) => l.length));
+              const fz = n.fontSize || 14;
+              const charW = fz * 0.62;
+              const lh = fz * 1.35;
+              const padX = 28;
+              const padY = 28;
+              const fitW = Math.max(n.w, Math.round(maxLen * charW + padX));
+              const fitH = Math.max(n.h, Math.round(lines.length * lh + padY));
+              sizePatch = { w: fitW, h: fitH };
+            }
             setNodes((ns) =>
               ns.map((m) =>
-                m.id === n.id ? { ...m, text: editing.value } : m,
+                m.id === n.id ? { ...m, text, ...sizePatch } : m,
               ),
             );
             setEditing(null);

@@ -7,6 +7,10 @@ import {
   CornerDownRight,
   ArrowLeftRight,
   Type,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
 } from "lucide-react";
 import { ShapeIcon } from "./Shapes.jsx";
 import {
@@ -24,6 +28,8 @@ const MORPH_SHAPES = [
   { type: "diamond", label: "Diamond" },
   { type: "ellipse", label: "Ellipse" },
   { type: "cylinder", label: "Cylinder" },
+  { type: "text", label: "Text" },
+  { type: "textarea", label: "Text Area" },
 ];
 
 function getCenterArcPillPath(w, h, placeBelow = false) {
@@ -336,6 +342,31 @@ export default function FloatingHUD({
             </div>
 
             <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
+
+            {/* Quick Text Alignment Cycle Button */}
+            {single && (
+              <button
+                type="button"
+                className="fs-hud-btn"
+                title={`Text Alignment: ${single.textAlign || (single.type === "textarea" ? "left" : "center")} (Click to change)`}
+                onClick={() => {
+                  const current = single.textAlign || (single.type === "textarea" ? "left" : "center");
+                  const order = ["left", "center", "right", "justify"];
+                  const nextAlign = order[(order.indexOf(current) + 1) % order.length];
+                  if (onPatchNodes) {
+                    onPatchNodes({ textAlign: nextAlign }, "hud_text_align");
+                  }
+                }}
+              >
+                {(() => {
+                  const a = single.textAlign || (single.type === "textarea" ? "left" : "center");
+                  if (a === "left") return <AlignLeft size={16} />;
+                  if (a === "right") return <AlignRight size={16} />;
+                  if (a === "justify") return <AlignJustify size={16} />;
+                  return <AlignCenter size={16} />;
+                })()}
+              </button>
+            )}
 
             {/* Group button if multiple nodes selected */}
             {sel.nodes.length > 1 && onGroup && (

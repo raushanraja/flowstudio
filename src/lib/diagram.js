@@ -11,6 +11,7 @@ const SHAPE_TYPES = [
   "ellipse",
   "cylinder",
   "text",
+  "textarea",
   "group",
 ];
 const num = (v, fallback) =>
@@ -36,6 +37,8 @@ export function normalizeDiagram(data) {
       fill: str(n.fill, "#ffffff"),
       stroke: str(n.stroke, "#a1a1aa"),
       textColor: str(n.textColor, ""),
+      textAlign: str(n.textAlign, undefined),
+      verticalAlign: str(n.verticalAlign, undefined),
       strokeWidth: num(n.strokeWidth, 2),
       fontSize: num(n.fontSize, 14),
       text: str(n.text, ""),

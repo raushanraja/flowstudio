@@ -531,6 +531,7 @@ export function getEffectiveTextColor(node, themeOrT = "midnight") {
     node.fill === "transparent" ||
     node.fill === "none" ||
     node.type === "text" ||
+    (node.type === "textarea" && (!node.fill || node.fill === "transparent" || node.fill === "none")) ||
     node.type === "group";
 
   const bg = isTransparent ? T.bg : node.fill;
@@ -819,11 +820,11 @@ export function rethemeDiagram(nodes, targetTheme = "midnight") {
         textColor: T.text,
       };
     }
-    if (n.type === "text") {
+    if (n.type === "text" || n.type === "textarea") {
       return {
         ...n,
-        fill: "transparent",
-        stroke: "transparent",
+        fill: n.fill === "transparent" || !n.fill ? "transparent" : n.fill,
+        stroke: n.type === "text" ? "transparent" : (n.stroke === "transparent" ? "transparent" : T.border),
         textColor: T.text,
       };
     }
@@ -1040,5 +1041,6 @@ export const SHAPE_DEFS = [
   { type: "ellipse", label: "Ellipse", key: "O" },
   { type: "cylinder", label: "Database", key: "B" },
   { type: "text", label: "Text", key: "T" },
+  { type: "textarea", label: "Text Area", key: "A" },
   { type: "group", label: "Frame / Group", key: "G" },
 ];

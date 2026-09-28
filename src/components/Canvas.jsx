@@ -570,19 +570,38 @@ export default function Canvas({
           autoFocus
           className="fs-edit"
           value={editing.value}
+          wrap={editingNode.type === "textarea" ? "off" : undefined}
           style={{
             left: cam.x + editingNode.x * z,
             top: cam.y + editingNode.y * z,
             width: editingNode.w * z,
             height: editingNode.h * z,
             fontSize: editingNode.fontSize * z,
+            textAlign:
+              editingNode.textAlign ||
+              (editingNode.type === "textarea" ? "left" : "center"),
+            whiteSpace: editingNode.type === "textarea" ? "pre" : "normal",
+            overflowX: editingNode.type === "textarea" ? "auto" : "hidden",
+            overflowY: "auto",
+            lineHeight: 1.35,
+            padding: 8 * z,
           }}
           onChange={(e) => onEditChange(e.target.value)}
           onBlur={onEditCommit}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onEditCommit();
+            if (e.key === "Enter") {
+              if (editingNode.type === "textarea") {
+                if (e.metaKey || e.ctrlKey) {
+                  e.preventDefault();
+                  onEditCommit();
+                }
+                // Regular Enter inserts newline so text continues on next line
+                return;
+              }
+              if (!e.shiftKey) {
+                e.preventDefault();
+                onEditCommit();
+              }
             }
             if (e.key === "Escape") {
               e.preventDefault();

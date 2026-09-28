@@ -74,6 +74,17 @@ export function NodeShape({ n, T }) {
         </g>
       );
     }
+    case "textarea":
+      return (
+        <rect
+          x={n.x}
+          y={n.y}
+          width={n.w}
+          height={n.h}
+          rx={8}
+          {...base}
+        />
+      );
     case "text":
     default:
       return (
@@ -90,30 +101,57 @@ export function NodeShape({ n, T }) {
 }
 
 export function NodeText({ n, T }) {
-  const text = (n.text || "").trim();
-  if (!text) return null;
-  const lines = text.split("\n"),
-    lh = n.fontSize * 1.25;
-  const startY = n.y + n.h / 2 - ((lines.length - 1) * lh) / 2;
+  if (n.text == null || n.text === "") return null;
+  const lines = n.text.split("\n");
+  const fz = n.fontSize || 14;
+  const lh = fz * 1.35;
+  const align = n.textAlign || (n.type === "textarea" ? "left" : "center");
+  const vAlign = n.verticalAlign || (n.type === "textarea" ? "top" : "middle");
+  const padX = n.type === "textarea" || n.type === "text" ? 14 : 10;
+  const padY = n.type === "textarea" || n.type === "text" ? 14 : 10;
+  const totalH = (lines.length - 1) * lh;
+
+  let startY = n.y + n.h / 2 - totalH / 2;
+  if (vAlign === "top") startY = n.y + padY + lh / 2;
+  else if (vAlign === "bottom") startY = n.y + n.h - padY - totalH - lh / 2;
+
+  let anchor = "middle";
+  let x = n.x + n.w / 2;
+  if (align === "left" || align === "justify") {
+    anchor = "start";
+    x = n.x + padX;
+  } else if (align === "right") {
+    anchor = "end";
+    x = n.x + n.w - padX;
+  }
+
+  const availW = Math.max(10, n.w - padX * 2);
   const textColor = getEffectiveTextColor(n, T);
+
   return (
     <text
-      textAnchor="middle"
+      textAnchor={anchor}
       fill={textColor}
-      fontSize={n.fontSize}
+      fontSize={fz}
       fontFamily={MONO}
       pointerEvents="none"
     >
-      {lines.map((l, i) => (
-        <tspan
-          key={i}
-          x={n.x + n.w / 2}
-          y={startY + i * lh}
-          dominantBaseline="middle"
-        >
-          {l}
-        </tspan>
-      ))}
+      {lines.map((l, i) => {
+        const isJustified =
+          align === "justify" && i < lines.length - 1 && l.trim().includes(" ");
+        return (
+          <tspan
+            key={i}
+            x={x}
+            y={startY + i * lh}
+            textLength={isJustified ? availW : undefined}
+            lengthAdjust={isJustified ? "spacing" : undefined}
+            dominantBaseline="middle"
+          >
+            {l}
+          </tspan>
+        );
+      })}
     </text>
   );
 }
@@ -148,6 +186,12 @@ export function ShapeIcon({ type }) {
         >
           T
         </text>
+      )}
+      {type === "textarea" && (
+        <g {...s}>
+          <rect x={3} y={3} width={24} height={14} rx={3} strokeDasharray="3 2" />
+          <path d="M7 7 h10 M7 10 h16 M7 13 h12" stroke="currentColor" strokeWidth={1.2} />
+        </g>
       )}
       {type === "group" && (
         <g {...s} strokeDasharray="3 2">
