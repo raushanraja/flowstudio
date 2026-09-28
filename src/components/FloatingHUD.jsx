@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import {
   CopyPlus,
   Trash2,
@@ -26,6 +26,47 @@ const MORPH_SHAPES = [
   { type: "cylinder", label: "Cylinder" },
 ];
 
+function getArchPath(w, h, placeBelow = false) {
+  const r = 14;
+  const mid = w / 2;
+  const archW = 34;
+  const archH = 10;
+
+  if (!placeBelow) {
+    // Arch upward: top curves up in center, bottom has archway cutout over the + button
+    return [
+      `M 0 ${r + 4}`,
+      `A ${r} ${r} 0 0 1 ${r} 4`,
+      `C ${mid - w / 5} 0, ${mid + w / 5} 0, ${w - r} 4`,
+      `A ${r} ${r} 0 0 1 ${w} ${r + 4}`,
+      `L ${w} ${h - r}`,
+      `A ${r} ${r} 0 0 1 ${w - r} ${h}`,
+      `L ${mid + archW} ${h}`,
+      `C ${mid + archW * 0.55} ${h}, ${mid + archW * 0.45} ${h - archH}, ${mid} ${h - archH}`,
+      `C ${mid - archW * 0.45} ${h - archH}, ${mid - archW * 0.55} ${h}, ${mid - archW} ${h}`,
+      `L ${r} ${h}`,
+      `A ${r} ${r} 0 0 1 0 ${h - r}`,
+      "Z",
+    ].join(" ");
+  } else {
+    // Arch downward when placed below the node: top has archway cutout over the bottom + button
+    return [
+      `M 0 ${r}`,
+      `A ${r} ${r} 0 0 1 ${r} 0`,
+      `L ${mid - archW} 0`,
+      `C ${mid - archW * 0.55} 0, ${mid - archW * 0.45} ${archH}, ${mid} ${archH}`,
+      `C ${mid + archW * 0.45} ${archH}, ${mid + archW * 0.55} 0, ${mid + archW} 0`,
+      `L ${w - r} 0`,
+      `A ${r} ${r} 0 0 1 ${w} ${r}`,
+      `L ${w} ${h - r - 4}`,
+      `A ${r} ${r} 0 0 1 ${w - r} ${h - 4}`,
+      `C ${mid + w / 5} ${h}, ${mid - w / 5} ${h}, ${r} ${h - 4}`,
+      `A ${r} ${r} 0 0 1 0 ${h - r - 4}`,
+      "Z",
+    ].join(" ");
+  }
+}
+
 export default function FloatingHUD({
   sel = { nodes: [], edges: [] },
   nodes = [],
@@ -42,6 +83,19 @@ export default function FloatingHUD({
   onEditLabel,
 }) {
   const [showShapePicker, setShowShapePicker] = useState(false);
+  const [hudSize, setHudSize] = useState({ w: 340, h: 48 });
+  const hudRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (hudRef.current) {
+      const rect = hudRef.current.getBoundingClientRect();
+      const w = Math.round(rect.width);
+      const h = Math.round(rect.height);
+      if (w > 0 && h > 0) {
+        setHudSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+      }
+    }
+  }, [sel.nodes, sel.edges, theme]);
 
   if (simMode) return null;
 
@@ -70,8 +124,11 @@ export default function FloatingHUD({
     const topScreenY = cam.y + minY * cam.zoom;
     const bottomScreenY = cam.y + maxY * cam.zoom;
 
-    // Generous clearance: place 20px above top handles
-    const CLEARANCE = 20;
+    // The top + handle apex is at topScreenY - 25px.
+    // Setting CLEARANCE = 44px ensures the bottom of the HUD is at topScreenY - 44px,
+    // and the center arch cutout peak is at topScreenY - 54px.
+    // This gives generous 29px clearance directly over the top + handle.
+    const CLEARANCE = 44;
     if (topScreenY - 60 < 70) {
       cy = bottomScreenY + CLEARANCE;
       placeBelow = true;
@@ -100,7 +157,7 @@ export default function FloatingHUD({
 
     cx = cam.x + midPoint.x * cam.zoom;
     const midScreenY = cam.y + midPoint.y * cam.zoom;
-    const CLEARANCE = 26;
+    const CLEARANCE = 30;
     if (midScreenY - 60 < 70) {
       cy = midScreenY + CLEARANCE;
       placeBelow = true;
@@ -119,254 +176,367 @@ export default function FloatingHUD({
   const single = isSingleNode ? nodes.find((n) => n.id === sel.nodes[0]) : null;
   const singleEdge = hasSingleEdge ? edges.find((ed) => ed.id === sel.edges[0]) : null;
 
+  const archD = hasNodes ? getArchPath(hudSize.w, hudSize.h, placeBelow) : null;
+
   return (
     <div
-      className="fs-glass"
+      ref={hudRef}
       style={{
         position: "absolute",
         left: clampedX,
         top: clampedY,
         transform: placeBelow ? "translate(-50%, 0)" : "translate(-50%, -100%)",
         zIndex: 28,
-        display: "flex",
+        display: "inline-flex",
         alignItems: "center",
-        gap: 6,
-        padding: "6px 10px",
-        borderRadius: 14,
-        boxShadow: "0 12px 32px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.12)",
-        border: "1px solid var(--border-hard)",
+        justifyContent: "center",
+        userSelect: "none",
+        filter: "drop-shadow(0 14px 34px rgba(0, 0, 0, 0.35)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.12))",
         animation: "fs-fade-in 0.12s cubic-bezier(0.16, 1, 0.3, 1)",
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {/* Node Controls */}
-      {hasNodes && (
-        <>
-          {/* Shape Morpher for single node */}
-          {single && single.type !== "group" && (
-            <div style={{ position: "relative" }}>
+      {/* SVG Arch Shape Backdrop for Nodes */}
+      {hasNodes ? (
+        <svg
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: hudSize.w,
+            height: hudSize.h,
+            pointerEvents: "none",
+            zIndex: 0,
+            overflow: "visible",
+          }}
+        >
+          <path
+            d={archD}
+            fill="var(--panel-solid, rgba(30, 36, 50, 0.95))"
+            stroke="var(--border-hard, rgba(148, 163, 184, 0.35))"
+            strokeWidth={1.25}
+          />
+        </svg>
+      ) : (
+        /* Standard capsule backdrop for edges */
+        <div
+          className="fs-glass"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderRadius: 14,
+            border: "1px solid var(--border-hard)",
+            zIndex: 0,
+          }}
+        />
+      )}
+
+      {/* Toolbar Buttons Layout */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: hasNodes
+            ? placeBelow
+              ? "11px 14px 6px"
+              : "6px 14px 11px"
+            : "6px 10px",
+        }}
+      >
+        {/* Node Controls */}
+        {hasNodes && (
+          <>
+            {/* Shape Morpher for single node */}
+            {single && single.type !== "group" && (
+              <div
+                style={{
+                  position: "relative",
+                  transform: placeBelow ? "translateY(-1px)" : "translateY(2px)",
+                }}
+              >
+                <button
+                  type="button"
+                  className={`fs-hud-btn ${showShapePicker ? "on" : ""}`}
+                  title={`Change Shape (Current: ${single.type})`}
+                  onClick={() => setShowShapePicker((v) => !v)}
+                  style={{ width: 34, height: 32 }}
+                >
+                  <ShapeIcon type={single.type} />
+                </button>
+
+                {/* Popup shape selector */}
+                {showShapePicker && (
+                  <div
+                    className="fs-glass"
+                    style={{
+                      position: "absolute",
+                      bottom: placeBelow ? "auto" : "100%",
+                      top: placeBelow ? "100%" : "auto",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      marginTop: placeBelow ? 8 : 0,
+                      marginBottom: placeBelow ? 0 : 8,
+                      display: "flex",
+                      gap: 4,
+                      padding: 6,
+                      borderRadius: 12,
+                      boxShadow: "0 12px 30px rgba(0, 0, 0, 0.35)",
+                      border: "1px solid var(--border-hard)",
+                      zIndex: 50,
+                    }}
+                  >
+                    {MORPH_SHAPES.map((s) => (
+                      <button
+                        key={s.type}
+                        type="button"
+                        className={`fs-hud-btn ${single.type === s.type ? "on" : ""}`}
+                        title={s.label}
+                        onClick={() => {
+                          if (onMorphShape) onMorphShape(s.type);
+                          setShowShapePicker(false);
+                        }}
+                        style={{ width: 34, height: 32 }}
+                      >
+                        <ShapeIcon type={s.type} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Quick Color Swatches at Arch Center Peak */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "0 4px",
+                transform: placeBelow ? "translateY(1px)" : "translateY(-1px)",
+              }}
+            >
+              {presets.slice(0, 6).map((p) => {
+                const stroke = presetStroke(p, theme);
+                const fill = presetFill(p, theme);
+                const text = presetText(p, theme);
+                return (
+                  <div
+                    key={p.label}
+                    className="fs-swatch"
+                    title={p.label}
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 999,
+                      background: fill,
+                      border: `2px solid ${stroke}`,
+                      cursor: "pointer",
+                      transition: "transform 0.15s ease",
+                    }}
+                    onClick={() => {
+                      if (onPatchNodes) {
+                        onPatchNodes({ stroke, fill, textColor: text }, "hud_color");
+                      }
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            <div
+              style={{
+                width: 1,
+                height: 20,
+                background: "var(--border)",
+                margin: "0 2px",
+                transform: placeBelow ? "translateY(-1px)" : "translateY(1px)",
+              }}
+            />
+
+            {/* Group button if multiple nodes selected */}
+            {sel.nodes.length > 1 && onGroup && (
               <button
                 type="button"
-                className={`fs-hud-btn ${showShapePicker ? "on" : ""}`}
-                title={`Change Shape (Current: ${single.type})`}
-                onClick={() => setShowShapePicker((v) => !v)}
-                style={{ width: 34, height: 32 }}
+                className="fs-hud-btn"
+                title="Group Selection (Ctrl+G)"
+                onClick={onGroup}
+                style={{
+                  transform: placeBelow ? "translateY(-1px)" : "translateY(2px)",
+                }}
               >
-                <ShapeIcon type={single.type} />
+                <Group size={16} />
               </button>
+            )}
 
-              {/* Popup shape selector */}
-              {showShapePicker && (
-                <div
-                  className="fs-glass"
-                  style={{
-                    position: "absolute",
-                    bottom: "100%",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    marginBottom: 10,
-                    display: "flex",
-                    gap: 4,
-                    padding: 6,
-                    borderRadius: 12,
-                    boxShadow: "0 12px 30px rgba(0, 0, 0, 0.35)",
-                    border: "1px solid var(--border-hard)",
-                  }}
-                >
-                  {MORPH_SHAPES.map((s) => (
-                    <button
-                      key={s.type}
-                      type="button"
-                      className={`fs-hud-btn ${single.type === s.type ? "on" : ""}`}
-                      title={s.label}
-                      onClick={() => {
-                        if (onMorphShape) onMorphShape(s.type);
-                        setShowShapePicker(false);
-                      }}
-                      style={{ width: 34, height: 32 }}
-                    >
-                      <ShapeIcon type={s.type} />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            {/* Duplicate button */}
+            {onDuplicate && (
+              <button
+                type="button"
+                className="fs-hud-btn"
+                title="Duplicate (Ctrl+D / Alt+Drag)"
+                onClick={onDuplicate}
+                style={{
+                  transform: placeBelow ? "translateY(-1px)" : "translateY(2px)",
+                }}
+              >
+                <CopyPlus size={16} />
+              </button>
+            )}
 
-          {/* Quick Color Swatches */}
-          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "0 4px" }}>
-            {presets.slice(0, 6).map((p) => {
-              const stroke = presetStroke(p, theme);
-              const fill = presetFill(p, theme);
-              const text = presetText(p, theme);
+            {/* Delete button */}
+            {onDelete && (
+              <button
+                type="button"
+                className="fs-hud-btn"
+                title="Delete (Del)"
+                onClick={onDelete}
+                style={{
+                  color: "#ef4444",
+                  transform: placeBelow ? "translateY(-1px)" : "translateY(2px)",
+                }}
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Edge Controls */}
+        {hasSingleEdge && singleEdge && (
+          <>
+            {/* Routing mode buttons */}
+            {[
+              {
+                mode: "curved",
+                title: "Curved Routing",
+                icon: <Spline size={16} />,
+              },
+              {
+                mode: "orthogonal",
+                title: "Orthogonal Routing",
+                icon: <CornerDownRight size={16} />,
+              },
+              {
+                mode: "straight",
+                title: "Straight Line",
+                icon: (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <line x1="2" y1="12" x2="22" y2="12" strokeLinecap="round" />
+                  </svg>
+                ),
+              },
+            ].map(({ mode, title, icon }) => {
+              const isSelected = (singleEdge.routing || "curved") === mode;
               return (
-                <div
-                  key={p.label}
-                  className="fs-swatch"
-                  title={p.label}
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 999,
-                    background: fill,
-                    border: `2px solid ${stroke}`,
-                    cursor: "pointer",
-                    transition: "transform 0.15s ease",
-                  }}
-                  onClick={() => {
-                    if (onPatchNodes) {
-                      onPatchNodes({ stroke, fill, textColor: text }, "hud_color");
-                    }
-                  }}
-                />
+                <button
+                  key={mode}
+                  type="button"
+                  className={`fs-hud-btn ${isSelected ? "on" : ""}`}
+                  title={title}
+                  onClick={() =>
+                    onPatchEdge && onPatchEdge({ routing: mode }, "hud_routing")
+                  }
+                >
+                  {icon}
+                </button>
               );
             })}
-          </div>
 
-          <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
+            <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
 
-          {/* Group button if multiple nodes selected */}
-          {sel.nodes.length > 1 && onGroup && (
+            {/* Dashed toggle */}
             <button
               type="button"
-              className="fs-hud-btn"
-              title="Group Selection (Ctrl+G)"
-              onClick={onGroup}
+              className={`fs-hud-btn ${singleEdge.dashed ? "on" : ""}`}
+              title="Toggle Dashed Line"
+              onClick={() =>
+                onPatchEdge &&
+                onPatchEdge({ dashed: !singleEdge.dashed }, "hud_dashed")
+              }
             >
-              <Group size={16} />
-            </button>
-          )}
-
-          {/* Duplicate button */}
-          {onDuplicate && (
-            <button
-              type="button"
-              className="fs-hud-btn"
-              title="Duplicate (Ctrl+D / Alt+Drag)"
-              onClick={onDuplicate}
-            >
-              <CopyPlus size={16} />
-            </button>
-          )}
-
-          {/* Delete button */}
-          {onDelete && (
-            <button
-              type="button"
-              className="fs-hud-btn"
-              title="Delete (Del)"
-              onClick={onDelete}
-              style={{ color: "#ef4444" }}
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </>
-      )}
-
-      {/* Edge Controls */}
-      {hasSingleEdge && singleEdge && (
-        <>
-          {/* Routing mode buttons */}
-          {[
-            {
-              mode: "curved",
-              title: "Curved Routing",
-              icon: <Spline size={16} />,
-            },
-            {
-              mode: "orthogonal",
-              title: "Orthogonal Routing",
-              icon: <CornerDownRight size={16} />,
-            },
-            {
-              mode: "straight",
-              title: "Straight Line",
-              icon: (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="2" y1="12" x2="22" y2="12" strokeLinecap="round" />
-                </svg>
-              ),
-            },
-          ].map(({ mode, title, icon }) => {
-            const isSelected = (singleEdge.routing || "curved") === mode;
-            return (
-              <button
-                key={mode}
-                type="button"
-                className={`fs-hud-btn ${isSelected ? "on" : ""}`}
-                title={title}
-                onClick={() => onPatchEdge && onPatchEdge({ routing: mode }, "hud_routing")}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
               >
-                {icon}
+                <line
+                  x1="2"
+                  y1="12"
+                  x2="22"
+                  y2="12"
+                  strokeDasharray="5 4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+
+            {/* Edit Label button */}
+            {onEditLabel && (
+              <button
+                type="button"
+                className="fs-hud-btn"
+                title="Edit Link Label (Double Click on Link)"
+                onClick={() => onEditLabel(singleEdge.id, singleEdge.label || "")}
+              >
+                <Type size={16} />
               </button>
-            );
-          })}
+            )}
 
-          <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
-
-          {/* Dashed toggle */}
-          <button
-            type="button"
-            className={`fs-hud-btn ${singleEdge.dashed ? "on" : ""}`}
-            title="Toggle Dashed Line"
-            onClick={() => onPatchEdge && onPatchEdge({ dashed: !singleEdge.dashed }, "hud_dashed")}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="2" y1="12" x2="22" y2="12" strokeDasharray="5 4" strokeLinecap="round" />
-            </svg>
-          </button>
-
-          {/* Edit Label button */}
-          {onEditLabel && (
+            {/* Flip direction */}
             <button
               type="button"
               className="fs-hud-btn"
-              title="Edit Link Label (Double Click on Link)"
-              onClick={() => onEditLabel(singleEdge.id, singleEdge.label || "")}
+              title="Reverse Direction"
+              onClick={() =>
+                onPatchEdge &&
+                onPatchEdge(
+                  {
+                    from: singleEdge.to,
+                    to: singleEdge.from,
+                    fromPort: singleEdge.toPort || "right",
+                    toPort: singleEdge.fromPort || "left",
+                    waypoints: singleEdge.waypoints
+                      ? [...singleEdge.waypoints].reverse()
+                      : null,
+                  },
+                  "hud_flip"
+                )
+              }
             >
-              <Type size={16} />
+              <ArrowLeftRight size={15} />
             </button>
-          )}
 
-          {/* Flip direction */}
-          <button
-            type="button"
-            className="fs-hud-btn"
-            title="Reverse Direction"
-            onClick={() =>
-              onPatchEdge &&
-              onPatchEdge(
-                {
-                  from: singleEdge.to,
-                  to: singleEdge.from,
-                  fromPort: singleEdge.toPort || "right",
-                  toPort: singleEdge.fromPort || "left",
-                  waypoints: singleEdge.waypoints
-                    ? [...singleEdge.waypoints].reverse()
-                    : null,
-                },
-                "hud_flip"
-              )
-            }
-          >
-            <ArrowLeftRight size={15} />
-          </button>
-
-          {/* Delete connection */}
-          {onDelete && (
-            <button
-              type="button"
-              className="fs-hud-btn"
-              title="Delete Connection"
-              onClick={onDelete}
-              style={{ color: "#ef4444" }}
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </>
-      )}
+            {/* Delete connection */}
+            {onDelete && (
+              <button
+                type="button"
+                className="fs-hud-btn"
+                title="Delete Connection"
+                onClick={onDelete}
+                style={{ color: "#ef4444" }}
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
