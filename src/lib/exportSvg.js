@@ -154,7 +154,7 @@ function renderShapeElement(n) {
 /**
  * Render multi-line node text
  */
-function renderNodeText(n) {
+function renderNodeText(n, T) {
   const text = (n.text || "").trim();
   if (!text) return "";
   const lines = text.split("\n");

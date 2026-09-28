@@ -1890,10 +1890,13 @@ export default function App() {
   /* ---------- import / export ---------- */
   const save = (blob, name) => {
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
     a.download = name;
+    document.body.appendChild(a);
     a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 500);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 40000);
   };
 
   function buildExportSvg(options = {}) {
@@ -2339,7 +2342,6 @@ export default function App() {
           onToggleInspector={() => setIsInspectorOpen((prev) => !prev)}
           isInspectorOpen={isInspectorOpen}
           onToggleSim={toggleSim}
-          onAutoLayout={handleAutoLayout}
         />
       )}
 
