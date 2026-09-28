@@ -35,6 +35,8 @@ import {
   Image,
   FileImage,
   Code2,
+  Map,
+  Video,
 } from "lucide-react";
 import {
   SHAPE_DEFS,
@@ -85,6 +87,8 @@ export default function CommandPalette({
   onNew,
   importFileRef,
   mermaidFileRef,
+  onToggleMinimap,
+  onToggleRecord,
 }) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -151,6 +155,29 @@ export default function CommandPalette({
     { id: "zoom-out", category: "Canvas", title: "Zoom Out", icon: ZoomOut, run: onZoomOut },
     { id: "toggle-snap", category: "Canvas", title: "Toggle Grid Snapping", icon: Magnet, run: onToggleSnap },
     { id: "toggle-grid", category: "Canvas", title: "Toggle Canvas Grid", icon: Grid, run: onToggleGrid },
+    ...(onToggleMinimap
+      ? [
+          {
+            id: "view-minimap",
+            category: "Canvas",
+            title: "Toggle Radar Minimap",
+            shortcut: "M",
+            icon: Map,
+            run: onToggleMinimap,
+          },
+        ]
+      : []),
+    ...(onToggleRecord
+      ? [
+          {
+            id: "record-sim-video",
+            category: "Simulation",
+            title: "Record Simulation Video (WebM)",
+            icon: Video,
+            run: onToggleRecord,
+          },
+        ]
+      : []),
     { id: "toggle-theme", category: "Appearance", title: `Switch to ${THEME_LABELS[nextTheme(theme)] || nextTheme(theme)} Theme`, icon: getThemeIcon(nextTheme(theme)), run: onToggleTheme },
     ...THEME_ORDER.map((t) => ({
       id: `theme-${t}`,

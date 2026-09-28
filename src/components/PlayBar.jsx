@@ -36,6 +36,9 @@ export default function PlayBar({
   onClose,
   onToggleScenarios,
   onToggleSim,
+  isRecording = false,
+  recSeconds = 0,
+  onToggleRecord,
 }) {
   return (
     <div
@@ -299,6 +302,51 @@ export default function PlayBar({
       )}
 
       <span className="fs-sep" />
+
+      {/* Simulation Video Recording (WebM) */}
+      {onToggleRecord && (
+        <button
+          type="button"
+          className={`fs-btn-ghost ${isRecording ? "on" : ""}`}
+          title={
+            isRecording
+              ? "Stop & Download WebM Video Recording"
+              : "Record Simulation Video (WebM)"
+          }
+          onClick={onToggleRecord}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "4px 9px",
+            background: isRecording ? "rgba(239, 68, 68, 0.16)" : undefined,
+            borderColor: isRecording ? "#ef4444" : undefined,
+            color: isRecording ? "#ef4444" : "var(--text)",
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#ef4444",
+              display: "inline-block",
+              boxShadow: isRecording ? "0 0 8px #ef4444" : undefined,
+            }}
+          />
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: isRecording ? "'JetBrains Mono', monospace" : undefined,
+            }}
+          >
+            {isRecording
+              ? `REC ${Math.floor(recSeconds / 60)}:${String(recSeconds % 60).padStart(2, "0")}`
+              : "Rec"}
+          </span>
+        </button>
+      )}
 
       <button
         className="fs-btn-ghost"

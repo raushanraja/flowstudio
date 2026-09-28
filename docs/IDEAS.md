@@ -145,15 +145,15 @@ FlowStudio's simulation and scenario execution is its biggest unique differentia
 
 ## 7. Priority & Effort Matrix
 
-| Feature | Impact | Implementation Effort | Recommended Phase |
+| Feature | Impact | Implementation Effort | Status |
 | :--- | :---: | :---: | :---: |
-| **Canvas Auto-Layout (`dagre`)** | 🟢 Extremely High | 🟡 Moderate (Lib already installed) | **Phase 1** |
-| **Export to Mermaid Syntax** | 🟢 High | 🟢 Low (Parser inversion) | **Phase 1** |
-| **Alt + Drag Duplicate** | 🟢 High | 🟢 Low | **Phase 1** |
-| **Selection Floating HUD** | 🟢 High | 🟡 Moderate | **Phase 2** |
-| **Quick-Connect (`+` Handles)** | 🟢 Extremely High | 🔴 Substantial | **Phase 2** |
-| **Configurable Line Styles** | 🟡 Medium | 🟡 Moderate | **Phase 2** |
-| **Find on Canvas (`Ctrl+F`)** | 🟡 Medium | 🟢 Low | **Phase 2** |
-| **Interactive Mini-Map** | 🟡 Medium | 🟡 Moderate | **Phase 3** |
-| **Animated Simulation Export** | 🟢 High | 🔴 Substantial | **Phase 3** |
-| **Smart Magnetic Guidelines** | 🟡 Medium | 🔴 Substantial | **Phase 3** |
+| **Canvas Auto-Layout (`dagre`)** | 🟢 Extremely High | 🟡 Moderate (Lib already installed) | ✅ **Completed (Phase 1)** |
+| **Export to Mermaid Syntax** | 🟢 High | 🟢 Low (Parser inversion) | ✅ **Completed (Phase 1)** |
+| **Alt + Drag Duplicate** | 🟢 High | 🟢 Low | ✅ **Completed (Phase 1)** |
+| **Selection Floating HUD** | 🟢 High | 🟡 Moderate | ✅ **Completed (Phase 2)** |
+| **Quick-Connect (`+` Handles)** | 🟢 Extremely High | 🔴 Substantial | ✅ **Completed (Phase 2)** |
+| **Configurable Line Styles** | 🟡 Medium | 🟡 Moderate | ✅ **Completed (Phase 2)** |
+| **Find on Canvas (`Ctrl+F`)** | 🟡 Medium | 🟢 Low | ✅ **Completed (Phase 2)** |
+| **Interactive Mini-Map** | 🟡 Medium | 🟡 Moderate | ✅ **Completed (Phase 3)** |
+| **Animated Simulation Export** | 🟢 High | 🔴 Substantial | ✅ **Completed (Phase 3)** |
+| **Smart Magnetic Guidelines** | 🟡 Medium | 🔴 Substantial | ✅ **Completed (Phase 3)** |

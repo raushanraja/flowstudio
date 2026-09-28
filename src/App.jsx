@@ -35,10 +35,13 @@ import ExportModal from "./components/ExportModal.jsx";
 import { exportDiagramToSvg } from "./lib/exportSvg.js";
 import { layoutDiagram } from "./lib/layout.js";
 import { exportMermaid } from "./lib/exportMermaid.js";
+import { computeSmartGuides } from "./lib/geometry.js";
+import { SimulationRecorder, isRecordingSupported } from "./lib/recordSimulation.js";
 import PlayBar from "./components/PlayBar.jsx";
 import ScenariosPanel from "./components/ScenariosPanel.jsx";
 import FloatingHUD from "./components/FloatingHUD.jsx";
 import CanvasSearch from "./components/CanvasSearch.jsx";
+import Minimap from "./components/Minimap.jsx";
 
 const INITIAL = sampleDiagram();
 const STORAGE_KEY = "fs-document";
@@ -118,6 +121,11 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [guidelines, setGuidelines] = useState([]);
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [isVidRecording, setIsVidRecording] = useState(false);
+  const [vidRecSeconds, setVidRecSeconds] = useState(0);
+  const vidRecorderRef = useRef(null);
   const prevSelRef = useRef({ nodes: [], edges: [] });
 
   useEffect(() => {
@@ -677,6 +685,7 @@ export default function App() {
     let duplicated = false;
     let activeOrig = orig;
     const initialAlt = e.altKey;
+    let primaryTargetId = node.id;
 
     dragSession(
       (ev) => {
@@ -718,6 +727,7 @@ export default function App() {
           clones.forEach((c) => {
             activeOrig[c.id] = { x: c.x, y: c.y };
           });
+          primaryTargetId = idMap[node.id] || clones[0]?.id;
 
           setNodes((ns) => [...ns, ...clones]);
           if (newEdges.length) {
@@ -726,15 +736,46 @@ export default function App() {
           setSel({ nodes: clones.map((c) => c.id), edges: [] });
         }
 
+        let finalDx = sn(activeOrig[primaryTargetId].x + dx) - activeOrig[primaryTargetId].x;
+        let finalDy = sn(activeOrig[primaryTargetId].y + dy) - activeOrig[primaryTargetId].y;
+
+        const otherNodes = nodesRef.current.filter((n) => !activeOrig[n.id]);
+        if (otherNodes.length > 0) {
+          const primaryNode =
+            nodesRef.current.find((n) => n.id === primaryTargetId) || node;
+          const zoomVal = camRef.current?.zoom || 1;
+          const threshold = Math.max(4, Math.min(14, 8 / zoomVal));
+          const guideRes = computeSmartGuides(
+            {
+              ...primaryNode,
+              x: activeOrig[primaryTargetId].x + dx,
+              y: activeOrig[primaryTargetId].y + dy,
+            },
+            otherNodes,
+            threshold,
+          );
+
+          if (guideRes.guides.some((g) => g.type === "x")) {
+            finalDx = guideRes.snappedX - activeOrig[primaryTargetId].x;
+          }
+          if (guideRes.guides.some((g) => g.type === "y")) {
+            finalDy = guideRes.snappedY - activeOrig[primaryTargetId].y;
+          }
+          setGuidelines(guideRes.guides);
+        } else {
+          setGuidelines([]);
+        }
+
         setNodes((ns) =>
           ns.map((n) =>
             activeOrig[n.id]
-              ? { ...n, x: sn(activeOrig[n.id].x + dx), y: sn(activeOrig[n.id].y + dy) }
+              ? { ...n, x: activeOrig[n.id].x + finalDx, y: activeOrig[n.id].y + finalDy }
               : n,
           ),
         );
       },
       () => {
+        setGuidelines([]);
         if (moved) pushUndo(snapShot);
       },
     );
@@ -1763,6 +1804,8 @@ export default function App() {
         setTool("select");
       } else if (!mod && k === "h") {
         setTool("pan");
+      } else if (!mod && k === "m") {
+        setShowMinimap((v) => !v);
       } else if (!mod && k === "s") {
         A.toggleSim();
       } else if (!mod && !simModeRef.current && SHAPE_BY_KEY[k]) {
@@ -2051,6 +2094,63 @@ export default function App() {
     }
     return copyTextFallback(code);
   };
+
+  const toggleVideoRecording = async () => {
+    if (isVidRecording) {
+      if (vidRecorderRef.current) {
+        const blob = await vidRecorderRef.current.stop();
+        if (blob) {
+          const filename = `flowstudio-simulation-${Date.now()}.webm`;
+          save(blob, filename);
+        }
+      }
+      setIsVidRecording(false);
+      setVidRecSeconds(0);
+      return;
+    }
+
+    if (!isRecordingSupported()) {
+      alert("Canvas video recording is not supported in this browser.");
+      return;
+    }
+
+    if (!svgRef.current) return;
+
+    if (!playbackRef.current) {
+      startPlayback();
+    }
+
+    try {
+      const rec = new SimulationRecorder(svgRef.current, {
+        fps: 25,
+        bgColor: T.bg || "#0f172a",
+        onTick: (sec) => setVidRecSeconds(sec),
+        onComplete: (blob) => {
+          setIsVidRecording(false);
+          setVidRecSeconds(0);
+          if (blob) {
+            save(blob, `flowstudio-simulation-${Date.now()}.webm`);
+          }
+        },
+        onError: (err) => {
+          console.error("Simulation recording error:", err);
+          setIsVidRecording(false);
+          setVidRecSeconds(0);
+        },
+      });
+      vidRecorderRef.current = rec;
+      rec.start();
+      setIsVidRecording(true);
+      setVidRecSeconds(0);
+
+      if (!playingRef.current) {
+        startPlayback();
+      }
+    } catch (e) {
+      alert(`Could not start video recording: ${e.message}`);
+    }
+  };
+
   const exportJSON = () =>
     save(
       new Blob(
@@ -2292,6 +2392,9 @@ export default function App() {
         onPlaybackChoose={onPlaybackChoose}
         simMode={simMode}
         playMode={playMode}
+        guidelines={guidelines}
+        showMinimap={showMinimap}
+        onToggleMinimap={() => setShowMinimap((v) => !v)}
       />
 
       {/* Floating Context Toolbar over Selection */}
@@ -2320,6 +2423,22 @@ export default function App() {
         onFocusEdge={focusEdge}
       />
 
+      {/* Radar Minimap */}
+      {showMinimap && (
+        <Minimap
+          nodes={nodes}
+          cam={cam}
+          simMode={simMode}
+          onPanToWorld={(wx, wy) =>
+            setCam((c) => ({
+              ...c,
+              x: Math.round(window.innerWidth / 2 - wx * c.zoom),
+              y: Math.round(window.innerHeight / 2 - wy * c.zoom),
+            }))
+          }
+        />
+      )}
+
       {/* Playback Controls */}
       {playback && (
         <PlayBar
@@ -2345,6 +2464,9 @@ export default function App() {
           onStepFwd={stepFwd}
           onStepBack={stepBack}
           onRestart={restartPlayback}
+          isRecording={isVidRecording}
+          recSeconds={vidRecSeconds}
+          onToggleRecord={toggleVideoRecording}
           onSpeed={(v) => {
             setSpeedState(v);
             speedRef.current = v;
@@ -2453,6 +2575,8 @@ export default function App() {
         onNew={newDocument}
         importFileRef={fileRef}
         mermaidFileRef={merFileRef}
+        onToggleMinimap={() => setShowMinimap((v) => !v)}
+        onToggleRecord={toggleVideoRecording}
       />
 
       {/* Export Options Modal */}
@@ -2468,6 +2592,7 @@ export default function App() {
         onCopySVG={copySVGToClipboard}
         onCopyMermaid={copyMermaidToClipboard}
         onExportMermaid={exportMermaidFile}
+        onStartRecording={toggleVideoRecording}
       />
 
       {/* Hidden File Input for Import */}

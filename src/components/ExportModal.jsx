@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Loader2,
   Code2,
+  Video,
 } from "lucide-react";
 import { THEMES, THEME_ORDER, THEME_LABELS } from "../lib/theme.js";
 
@@ -25,6 +26,7 @@ export default function ExportModal({
   onCopySVG,
   onExportMermaid,
   onCopyMermaid,
+  onStartRecording,
 }) {
   const [transparent, setTransparent] = useState(false);
   const [exportTheme, setExportTheme] = useState(theme);
@@ -941,6 +943,87 @@ export default function ExportModal({
               Download JSON
             </button>
           </div>
+
+          {/* Simulation Video WebM Card */}
+          {onStartRecording && (
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 14,
+                border: "1px solid var(--border)",
+                background: "var(--panel-solid)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 14,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                <div
+                  style={{
+                    padding: 10,
+                    borderRadius: 12,
+                    background: "rgba(239, 68, 68, 0.12)",
+                    color: "#ef4444",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Video size={22} />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 3,
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>
+                      Simulation Video
+                    </span>
+                    <span className="fs-kbd" style={{ fontSize: 10 }}>.webm</span>
+                  </div>
+                  <div style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.4 }}>
+                    Record live workflow simulation with animated token steps and branch decisions to video.
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="fs-btn"
+                onClick={() => {
+                  onClose();
+                  onStartRecording();
+                }}
+                style={{
+                  borderRadius: 9,
+                  padding: "6px 16px",
+                  fontWeight: 600,
+                  fontSize: 12,
+                  flexShrink: 0,
+                  background: "rgba(239, 68, 68, 0.16)",
+                  borderColor: "#ef4444",
+                  color: "#ef4444",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    background: "#ef4444",
+                    display: "inline-block",
+                  }}
+                />
+                Record Simulation
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

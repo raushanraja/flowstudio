@@ -515,3 +515,69 @@ export function nodeAtInflated(p, nodes, margin = 12) {
       return n;
   return null;
 }
+
+export function computeSmartGuides(dragged, others, threshold = 6) {
+  let snappedX = dragged.x;
+  let snappedY = dragged.y;
+  const guides = [];
+
+  const dragXs = [
+    { offset: 0, val: dragged.x },
+    { offset: dragged.w / 2, val: dragged.x + dragged.w / 2 },
+    { offset: dragged.w, val: dragged.x + dragged.w },
+  ];
+  const dragYs = [
+    { offset: 0, val: dragged.y },
+    { offset: dragged.h / 2, val: dragged.y + dragged.h / 2 },
+    { offset: dragged.h, val: dragged.y + dragged.h },
+  ];
+
+  let bestDiffX = threshold;
+  let bestXSnap = null;
+  let guideX = null;
+
+  for (const n of others) {
+    const targetXs = [n.x, n.x + n.w / 2, n.x + n.w];
+    for (const dx of dragXs) {
+      for (const tx of targetXs) {
+        const diff = Math.abs(dx.val - tx);
+        if (diff < bestDiffX) {
+          bestDiffX = diff;
+          bestXSnap = tx - dx.offset;
+          guideX = tx;
+        }
+      }
+    }
+  }
+
+  if (bestXSnap !== null) {
+    snappedX = bestXSnap;
+    guides.push({ type: "x", val: guideX });
+  }
+
+  let bestDiffY = threshold;
+  let bestYSnap = null;
+  let guideY = null;
+
+  for (const n of others) {
+    const targetYs = [n.y, n.y + n.h / 2, n.y + n.h];
+    for (const dy of dragYs) {
+      for (const ty of targetYs) {
+        const diff = Math.abs(dy.val - ty);
+        if (diff < bestDiffY) {
+          bestDiffY = diff;
+          bestYSnap = ty - dy.offset;
+          guideY = ty;
+        }
+      }
+    }
+  }
+
+  if (bestYSnap !== null) {
+    snappedY = bestYSnap;
+    guides.push({ type: "y", val: guideY });
+  }
+
+  return { snappedX, snappedY, guides };
+}
+

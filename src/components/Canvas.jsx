@@ -17,6 +17,7 @@ import {
   Square,
   Workflow,
   Repeat,
+  Map,
 } from "lucide-react";
 
 export default function Canvas({
@@ -73,6 +74,9 @@ export default function Canvas({
   onPlaybackChoose,
   simMode,
   playMode,
+  guidelines = [],
+  showMinimap = false,
+  onToggleMinimap,
 }) {
   const editingNode = editing && byId[editing.id];
   const hasSelection = sel.nodes.length > 0 || sel.edges.length > 0;
@@ -530,6 +534,24 @@ export default function Canvas({
                 />
               );
             })()}
+
+          {/* Smart Magnetic Guidelines */}
+          {!simMode &&
+            guidelines &&
+            guidelines.map((g, idx) => (
+              <line
+                key={`guide-${idx}`}
+                data-overlay
+                x1={g.type === "x" ? g.val : -50000}
+                y1={g.type === "y" ? g.val : -50000}
+                x2={g.type === "x" ? g.val : 50000}
+                y2={g.type === "y" ? g.val : 50000}
+                stroke="#f43f5e"
+                strokeWidth={1.25 / z}
+                strokeDasharray={`${6 / z} ${4 / z}`}
+                opacity={0.88}
+              />
+            ))}
         </g>
       </svg>
 
@@ -746,6 +768,15 @@ export default function Canvas({
           >
             <Grid size={14} />
           </button>
+          {onToggleMinimap && (
+            <button
+              className={`fs-btn-ghost ${showMinimap ? "on" : ""}`}
+              title="Toggle Radar Minimap"
+              onClick={onToggleMinimap}
+            >
+              <Map size={14} />
+            </button>
+          )}
         </div>
       )}
 
