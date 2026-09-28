@@ -161,6 +161,8 @@ export default function App() {
   activeScenarioRef.current = activeScenarioId;
   const recordingRef = useRef(recording);
   recordingRef.current = recording;
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
   const simModeRef = useRef(simMode);
   simModeRef.current = simMode;
   const undoStack = useRef([]);
@@ -540,6 +542,7 @@ export default function App() {
     };
   }
   function addNode(type) {
+    commitEditing();
     const [w, h] = NODE_SIZES[type] || [180, 56];
     const nodes = nodesRef.current;
     const r = wrapRef.current.getBoundingClientRect();
@@ -608,7 +611,55 @@ export default function App() {
   }
 
   /* ---------- mouse interactions ---------- */
+  // Any exit from text editing saves — clicking elsewhere, Esc, switching
+  // nodes, panning, etc. There is no "discard" path: whatever the user typed
+  // becomes the label.
+  function commitEditing() {
+    if (!editing) return;
+    const n = byId[editing.id];
+    if (n) {
+      const text = editing.value;
+      if (text === n.text) {
+        setEditing(null);
+        return;
+      }
+      pushUndo(serialize());
+      let sizePatch = {};
+      if (n.type === "textarea" || n.type === "text") {
+        const lines = (text || "").split("\n");
+        const maxLen = Math.max(0, ...lines.map((l) => l.length));
+        const fz = n.fontSize || 14;
+        const charW = fz * 0.62;
+        const lh = fz * 1.35;
+        const padX = 28;
+        const padY = 28;
+        const fitW = Math.max(n.w, Math.round(maxLen * charW + padX));
+        const fitH = Math.max(n.h, Math.round(lines.length * lh + padY));
+        sizePatch = { w: fitW, h: fitH };
+      }
+      setNodes((ns) =>
+        ns.map((m) => (m.id === n.id ? { ...m, text, ...sizePatch } : m)),
+      );
+      setEditing(null);
+      return;
+    }
+    const ed = edgesRef.current.find((e) => e.id === editing.id);
+    if (ed) {
+      if (editing.value === (ed.label || "")) {
+        setEditing(null);
+        return;
+      }
+      pushUndo(serialize());
+      setEdges((es) =>
+        es.map((e) => (e.id === ed.id ? { ...e, label: editing.value } : e)),
+      );
+      setEditing(null);
+      return;
+    }
+    setEditing(null);
+  }
   function onCanvasMouseDown(e) {
+    commitEditing();
     if (e.button === 1 || tool === "pan" || e.altKey) {
       if (e.button === 1) e.preventDefault();
       const s = { x: e.clientX, y: e.clientY, cam: { ...camRef.current } };
@@ -654,6 +705,7 @@ export default function App() {
     setEditing({ id: n.id, value: "" });
   }
   function onNodeMouseDown(e, node) {
+    commitEditing();
     if (tool === "pan") return;
     e.stopPropagation();
     if (e.button !== 0) return;
@@ -794,6 +846,7 @@ export default function App() {
     );
   }
   function onPortMouseDown(e, node, side) {
+    commitEditing();
     if (tool === "pan") return;
     e.stopPropagation();
     e.preventDefault();
@@ -2309,6 +2362,59 @@ export default function App() {
     setCam({ x: 20, y: 10, zoom: 1 });
   }
 
+  // Commit the in-progress text/label edit. Safe to call repeatedly: the
+  // ref is cleared first so blur + click-outside can't double-commit.
+  function commitEdit() {
+    const ed = editingRef.current;
+    if (!ed) return;
+    editingRef.current = null;
+    const n = byId[ed.id];
+    if (n) {
+      pushUndo(serialize());
+      let sizePatch = {};
+      if (n.type === "textarea" || n.type === "text") {
+        const lines = (ed.value || "").split("\n");
+        const maxLen = Math.max(0, ...lines.map((l) => l.length));
+        const fz = n.fontSize || 14;
+        const charW = fz * 0.62;
+        const lh = fz * 1.35;
+        const padX = 28;
+        const padY = 28;
+        const fitW = Math.max(n.w, Math.round(maxLen * charW + padX));
+        const fitH = Math.max(n.h, Math.round(lines.length * lh + padY));
+        sizePatch = { w: fitW, h: fitH };
+      }
+      setNodes((ns) =>
+        ns.map((m) => (m.id === n.id ? { ...m, text: ed.value, ...sizePatch } : m)),
+      );
+      setEditing(null);
+      return;
+    }
+    const edge = edgesRef.current.find((e) => e.id === ed.id);
+    if (edge) {
+      pushUndo(serialize());
+      setEdges((es) =>
+        es.map((e) => (e.id === edge.id ? { ...e, label: ed.value } : e)),
+      );
+    }
+    setEditing(null);
+  }
+  const commitEditRef = useRef(null);
+  commitEditRef.current = commitEdit;
+
+  // Any mousedown outside the editing box commits what has been typed
+  // (canvas mousedowns call preventDefault, so blur alone is unreliable).
+  useEffect(() => {
+    const onDown = (e) => {
+      if (!editingRef.current) return;
+      const t = e.target;
+      if (t && t.classList && t.classList.contains("fs-edit")) return;
+      commitEditRef.current();
+    };
+    window.addEventListener("mousedown", onDown, true);
+    return () => window.removeEventListener("mousedown", onDown, true);
+  }, []);
+
   /* ---------- render ---------- */
   const single = sel.nodes.length === 1 ? byId[sel.nodes[0]] : null;
   const selEdge =
@@ -2396,47 +2502,7 @@ export default function App() {
         onWaypointMouseDown={onWaypointMouseDown}
         onWaypointDoubleClick={onWaypointDoubleClick}
         onEditChange={(v) => setEditing((ed) => ({ ...ed, value: v }))}
-        onEditCommit={() => {
-          if (!editing) return;
-          const n = byId[editing.id];
-          if (n) {
-            pushUndo(serialize());
-            const text = editing.value;
-            let sizePatch = {};
-            if (n.type === "textarea" || n.type === "text") {
-              const lines = (text || "").split("\n");
-              const maxLen = Math.max(0, ...lines.map((l) => l.length));
-              const fz = n.fontSize || 14;
-              const charW = fz * 0.62;
-              const lh = fz * 1.35;
-              const padX = 28;
-              const padY = 28;
-              const fitW = Math.max(n.w, Math.round(maxLen * charW + padX));
-              const fitH = Math.max(n.h, Math.round(lines.length * lh + padY));
-              sizePatch = { w: fitW, h: fitH };
-            }
-            setNodes((ns) =>
-              ns.map((m) =>
-                m.id === n.id ? { ...m, text, ...sizePatch } : m,
-              ),
-            );
-            setEditing(null);
-            return;
-          }
-          const ed = edgesRef.current.find((e) => e.id === editing.id);
-          if (ed) {
-            pushUndo(serialize());
-            setEdges((es) =>
-              es.map((e) =>
-                e.id === ed.id ? { ...e, label: editing.value } : e,
-              ),
-            );
-            setEditing(null);
-            return;
-          }
-          setEditing(null);
-        }}
-        onEditCancel={() => setEditing(null)}
+        onEditCommit={commitEdit}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onFit={fitView}
