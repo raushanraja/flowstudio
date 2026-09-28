@@ -19,6 +19,12 @@ export default function PlayBar({
   speed,
   scenarioName,
   simMode,
+  mode = "run",
+  onMode,
+  intervalMs = 3000,
+  onInterval,
+  laps = 0,
+  awaiting,
   onPlay,
   onPause,
   onStepFwd,
@@ -113,6 +119,58 @@ export default function PlayBar({
 
       <span className="fs-sep" />
 
+      <div
+        title="Run: interactive, pauses at undecided branches. Demo: timed hops, loops forever."
+        style={{
+          display: "flex",
+          gap: 2,
+          background: "var(--panel-solid)",
+          border: "1px solid var(--border)",
+          borderRadius: 999,
+          padding: 2,
+        }}
+      >
+        {[
+          ["run", "Run"],
+          ["demo", "Demo"],
+        ].map(([m, label]) => (
+          <button
+            key={m}
+            className="fs-btn-ghost"
+            onClick={() => onMode && onMode(m)}
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "3px 10px",
+              borderRadius: 999,
+              background: mode === m ? "var(--accent)" : "transparent",
+              color: mode === m ? "#ffffff" : "var(--muted)",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "demo" && (
+        <select
+          className="fs-inp"
+          value={intervalMs}
+          onChange={(e) => onInterval && onInterval(+e.target.value)}
+          title="Time between hops (travel time default)"
+          style={{ fontSize: 11, padding: "3px 6px" }}
+        >
+          {![1000, 2000, 3000, 5000, 10000].includes(intervalMs) && (
+            <option value={intervalMs}>{(intervalMs / 1000).toFixed(1)}s</option>
+          )}
+          <option value={1000}>1s</option>
+          <option value={2000}>2s</option>
+          <option value={3000}>3s</option>
+          <option value={5000}>5s</option>
+          <option value={10000}>10s</option>
+        </select>
+      )}
+
       {scenarioName && (
         <span
           style={{
@@ -136,7 +194,11 @@ export default function PlayBar({
         style={{
           fontSize: 11,
           fontWeight: 600,
-          color: loopDetected ? "#f59e0b" : loopExited ? "var(--accent)" : "var(--muted)",
+          color: loopDetected
+            ? "#f59e0b"
+            : loopExited || awaiting
+            ? "var(--accent)"
+            : "var(--muted)",
           minWidth: 44,
           textAlign: "center",
           fontFamily: "'JetBrains Mono', monospace",
@@ -161,6 +223,10 @@ export default function PlayBar({
             ? "Loop detected — simulation stopped to prevent infinite cycling"
             : loopExited
             ? "Loop detected — executed nested step via alternate branch to exit cycle"
+            : awaiting
+            ? "Awaiting a branch choice — pick one on the canvas"
+            : mode === "demo"
+            ? `Lap ${laps + 1} · ${steps} hop${steps === 1 ? "" : "s"} this lap`
             : undefined
         }
       >
@@ -173,32 +239,40 @@ export default function PlayBar({
           <span>Exited loop ({steps} hops)</span>
         ) : done ? (
           "Done"
+        ) : awaiting ? (
+          "Choose…"
+        ) : mode === "demo" ? (
+          `Lap ${laps + 1} · ${steps} hops`
         ) : (
           `${steps} hop${steps === 1 ? "" : "s"}`
         )}
       </span>
 
-      <input
-        type="range"
-        min={0.25}
-        max={4}
-        step={0.25}
-        value={speed}
-        onChange={(e) => onSpeed(+e.target.value)}
-        title="Playback speed (+ / -)"
-        style={{ width: 75, margin: "0 4px" }}
-      />
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: "var(--muted)",
-          minWidth: 28,
-          fontFamily: "'JetBrains Mono', monospace",
-        }}
-      >
-        {speed}×
-      </span>
+      {mode === "run" && (
+        <>
+          <input
+            type="range"
+            min={0.25}
+            max={4}
+            step={0.25}
+            value={speed}
+            onChange={(e) => onSpeed(+e.target.value)}
+            title="Playback speed (+ / -)"
+            style={{ width: 75, margin: "0 4px" }}
+          />
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--muted)",
+              minWidth: 28,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            {speed}×
+          </span>
+        </>
+      )}
 
       <span className="fs-sep" />
 

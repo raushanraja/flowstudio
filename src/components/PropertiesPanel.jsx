@@ -259,6 +259,28 @@ export default function PropertiesPanel({
               ))}
             </select>
           </div>
+          <label className="fs-lbl" style={{ fontSize: 11 }}>
+            Travel Time — demo (ms)
+            <input
+              className="fs-inp"
+              type="number"
+              min={0}
+              step={100}
+              value={selEdge.travelMs ?? ""}
+              placeholder="auto (hop interval)"
+              onChange={(e) =>
+                patchEdge(
+                  {
+                    travelMs:
+                      e.target.value === ""
+                        ? undefined
+                        : Math.max(0, +e.target.value),
+                  },
+                  "etravel",
+                )
+              }
+            />
+          </label>
           <div className="fs-lbl">
             Stroke Width ({selEdge.strokeWidth || 2}px)
             <input
@@ -644,6 +666,28 @@ export default function PropertiesPanel({
               }
             />
           </div>
+          <label className="fs-lbl" style={{ fontSize: 11 }}>
+            Dwell Time — demo (ms)
+            <input
+              className="fs-inp"
+              type="number"
+              min={0}
+              step={100}
+              value={single.dwellMs ?? ""}
+              placeholder="0"
+              onChange={(e) =>
+                doBatchPatch(
+                  {
+                    dwellMs:
+                      e.target.value === ""
+                        ? undefined
+                        : Math.max(0, +e.target.value),
+                  },
+                  "ndwell",
+                )
+              }
+            />
+          </label>
 
           {/* Action Buttons */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>

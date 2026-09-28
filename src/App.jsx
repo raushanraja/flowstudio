@@ -12,7 +12,7 @@ import {
 import { normalizeDiagram } from "./lib/diagram.js";
 import { sampleDiagram } from "./lib/sample.js";
 import { extractMermaidSource, mermaidTextToDiagram } from "./lib/mermaid.js";
-import { createPlayback } from "./lib/playback.js";
+import { createPlayback, DEFAULT_HOP_MS } from "./lib/playback.js";
 import { uid, clamp } from "./lib/utils.js";
 import {
   autoPort,
@@ -161,6 +161,19 @@ export default function App() {
   const [playFrame, setPlayFrame] = useState(0);
   const rafRef = useRef(null);
   const lastTsRef = useRef(0);
+  const [playMode, setPlayModeState] = useState(
+    saved?.playMode === "demo" ? "demo" : "run",
+  );
+  const [demoIntervalMs, setDemoIntervalMsState] = useState(
+    saved?.demoIntervalMs ?? DEFAULT_HOP_MS,
+  );
+  const playModeRef = useRef(playMode);
+  playModeRef.current = playMode;
+  const demoIntervalRef = useRef(demoIntervalMs);
+  demoIntervalRef.current = demoIntervalMs;
+  const setPlayMode = (m) => setPlayModeState(m === "demo" ? "demo" : "run");
+  const setDemoIntervalMs = (v) =>
+    setDemoIntervalMsState(Number.isFinite(+v) && +v > 0 ? +v : DEFAULT_HOP_MS);
 
   const stopLoop = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -175,7 +188,7 @@ export default function App() {
     const last = lastTsRef.current || ts;
     lastTsRef.current = ts;
     const dt = Math.min(64, ts - last);
-    eng.step(dt * speedRef.current);
+    eng.step(dt * (playModeRef.current === "demo" ? 1 : speedRef.current));
     bumpFrame();
     if (eng.snapshot().done) {
       stopLoop();
@@ -183,17 +196,23 @@ export default function App() {
     }
     rafRef.current = requestAnimationFrame(loop);
   };
+  const loopRef = useRef(null);
+  loopRef.current = loop;
   const activeScenarioSig = () => {
     const active = scenariosRef.current.find(
       (s) => s.id === activeScenarioRef.current,
     );
     const startId =
-      selRef.current.nodes.length === 1 ? selRef.current.nodes[0] : undefined;
+      selRef.current.nodes.length === 1
+        ? selRef.current.nodes[0]
+        : active?.startId || undefined;
     return JSON.stringify({
       choices: active?.choices || {},
       loopExits: active?.loopExits || {},
       maxLoopRetries: active?.maxLoopRetries ?? 1,
       startId,
+      mode: playModeRef.current,
+      hopInterval: demoIntervalRef.current,
     });
   };
   const buildEngine = () => {
@@ -201,7 +220,9 @@ export default function App() {
       (s) => s.id === activeScenarioRef.current,
     );
     const startId =
-      selRef.current.nodes.length === 1 ? selRef.current.nodes[0] : undefined;
+      selRef.current.nodes.length === 1
+        ? selRef.current.nodes[0]
+        : active?.startId || undefined;
     const eng = createPlayback({
       nodes: nodesRef.current,
       edges: edgesRef.current,
@@ -209,9 +230,33 @@ export default function App() {
       choices: active?.choices,
       loopExits: active?.loopExits,
       maxLoopRetries: active?.maxLoopRetries ?? 1,
+      mode: playModeRef.current,
+      hopInterval: demoIntervalRef.current,
     });
     eng._sig = activeScenarioSig();
     return eng;
+  };
+  // Recording + a single selected node: capture that node as the scenario's
+  // start (creating a scenario on the fly, like branch recording does).
+  const captureStartFromSelection = () => {
+    if (!recordingRef.current) return;
+    const selNodes = selRef.current.nodes;
+    if (selNodes.length !== 1) return;
+    const sid = selNodes[0];
+    setScenarios((list) => {
+      let id = activeScenarioRef.current;
+      if (!id || !list.some((s) => s.id === id)) {
+        id = uid("sc");
+        setActiveScenarioId(id);
+        return [
+          ...list,
+          { id, name: `Scenario ${list.length + 1}`, choices: {}, startId: sid },
+        ];
+      }
+      const cur = list.find((s) => s.id === id);
+      if (cur?.startId === sid) return list;
+      return list.map((s) => (s.id === id ? { ...s, startId: sid } : s));
+    });
   };
   const startPlayback = () => {
     if (playbackRef.current) {
@@ -234,6 +279,7 @@ export default function App() {
       }
       return;
     }
+    captureStartFromSelection();
     const eng = buildEngine();
     playbackRef.current = eng;
     setPlayback(eng);
@@ -280,7 +326,7 @@ export default function App() {
   const onPlaybackChoose = (edgeId) => {
     const eng = playbackRef.current;
     if (!eng) return;
-    const nodeId = eng.snapshot().activeNode;
+    const nodeId = eng.departNode();
     // Choosing a branch departs immediately so the token visibly responds.
     if (eng.choose(edgeId)) eng.hop();
     // Record mode: write the choice into the active scenario (creating one
@@ -319,12 +365,19 @@ export default function App() {
   useEffect(() => {
     if (!playbackRef.current) return;
     if (playbackRef.current._sig !== activeScenarioSig()) {
+      const wasPlaying = playingRef.current;
       stopLoop();
       playbackRef.current = buildEngine();
       setPlayback(playbackRef.current);
+      if (wasPlaying && !playbackRef.current.snapshot().done) {
+        playingRef.current = true;
+        setPlaying(true);
+        lastTsRef.current = 0;
+        rafRef.current = requestAnimationFrame(loopRef.current);
+      }
       bumpFrame();
     }
-  }, [scenarios, activeScenarioId]);
+  }, [scenarios, activeScenarioId, playMode, demoIntervalMs]);
 
   const byId = useMemo(
     () => Object.fromEntries(nodes.map((n) => [n.id, n])),
@@ -1193,12 +1246,17 @@ export default function App() {
         {
           id: uid("sc"),
           name: `${s.name} copy`,
+          startId: s.startId,
           choices: { ...s.choices },
           loopExits: { ...(s.loopExits || {}) },
           maxLoopRetries: s.maxLoopRetries ?? 1,
         },
       ];
     });
+  const setScenarioStart = (id, nodeId) =>
+    setScenarios((l) =>
+      l.map((s) => (s.id === id ? { ...s, startId: nodeId || undefined } : s)),
+    );
   const setScenarioChoice = (id, nodeId, edgeId) =>
     setScenarios((l) =>
       l.map((s) => {
@@ -1287,7 +1345,13 @@ export default function App() {
               }
             }
             const maxLoopRetries = typeof s.maxLoopRetries === "number" ? Math.max(1, s.maxLoopRetries) : 1;
-            merged.push({ id: uid("sc"), name, choices, loopExits, maxLoopRetries });
+            const nodesNow = nodesRef.current;
+            const startId =
+              typeof s.startId === "string" &&
+              nodesNow.some((n) => n.id === s.startId && n.type !== "group")
+                ? s.startId
+                : undefined;
+            merged.push({ id: uid("sc"), name, startId, choices, loopExits, maxLoopRetries });
           }
           return merged;
         });
@@ -1347,6 +1411,8 @@ export default function App() {
             cam,
             snap,
             showGrid,
+            playMode,
+            demoIntervalMs,
           }),
         );
       } catch {
@@ -1354,7 +1420,7 @@ export default function App() {
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [nodes, edges, theme, cam, snap, showGrid, scenarios, activeScenarioId]);
+  }, [nodes, edges, theme, cam, snap, showGrid, scenarios, activeScenarioId, playMode, demoIntervalMs]);
   useEffect(() => {
     if (!saved) fitView();
   }, [saved]);
@@ -1806,6 +1872,8 @@ export default function App() {
               edges,
               scenarios,
               activeScenarioId,
+              playMode,
+              demoIntervalMs,
             },
             null,
             2,
@@ -1830,6 +1898,8 @@ export default function App() {
         setScenarios(d.scenarios);
         setActiveScenarioId(d.activeScenarioId);
         if (d.theme) setTheme(d.theme);
+        setPlayMode(d.playMode);
+        setDemoIntervalMs(d.demoIntervalMs);
         setSel({ nodes: [], edges: [] });
       } catch {
         alert("Invalid JSON file");
@@ -1997,6 +2067,7 @@ export default function App() {
         playing={playing}
         onPlaybackChoose={onPlaybackChoose}
         simMode={simMode}
+        playMode={playMode}
       />
 
       {/* Playback Controls */}
@@ -2012,6 +2083,12 @@ export default function App() {
             scenarios.find((s) => s.id === activeScenarioId)?.name || null
           }
           simMode={simMode}
+          mode={playMode}
+          onMode={setPlayMode}
+          intervalMs={demoIntervalMs}
+          onInterval={setDemoIntervalMs}
+          laps={playback.snapshot().laps || 0}
+          awaiting={playback.snapshot().awaiting}
           onPlay={startPlayback}
           onPause={stopLoop}
           onStepFwd={stepFwd}
@@ -2043,6 +2120,7 @@ export default function App() {
           onRename={renameScenario}
           onDelete={deleteScenario}
           onDuplicate={duplicateScenario}
+          onStart={setScenarioStart}
           onChoice={setScenarioChoice}
           onLoopExit={setScenarioLoopExit}
           onMaxLoopRetries={setScenarioMaxLoopRetries}

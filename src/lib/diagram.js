@@ -42,6 +42,10 @@ export function normalizeDiagram(data) {
       badge: str(n.badge, ""),
       dashed: !!n.dashed,
       parentId: null,
+      dwellMs:
+        Number.isFinite(+n.dwellMs) && +n.dwellMs >= 0
+          ? +n.dwellMs
+          : undefined,
     });
   }
   const idSet = new Set(nodes.map((n) => n.id));
@@ -74,6 +78,10 @@ export function normalizeDiagram(data) {
         labelDx: Number.isFinite(+e.labelDx) ? +e.labelDx : undefined,
         labelDy: Number.isFinite(+e.labelDy) ? +e.labelDy : undefined,
         curve: CURVE_TYPES.includes(e.curve) ? e.curve : undefined,
+        travelMs:
+          Number.isFinite(+e.travelMs) && +e.travelMs > 0
+            ? +e.travelMs
+            : undefined,
         toPos:
           e.toPos &&
           Number.isFinite(+e.toPos.x) &&
@@ -129,6 +137,10 @@ export function normalizeDiagram(data) {
       scenarios.push({
         id,
         name: String(s.name).slice(0, 60),
+        startId:
+          typeof s.startId === "string" && idSet.has(s.startId)
+            ? s.startId
+            : undefined,
         choices,
         loopExits,
         maxLoopRetries: Number.isFinite(+s.maxLoopRetries) ? +s.maxLoopRetries : 1,
@@ -145,5 +157,7 @@ export function normalizeDiagram(data) {
       scenarios.some((s) => s.id === data.activeScenarioId)
         ? data.activeScenarioId
         : null,
+    playMode: data.playMode === "demo" ? "demo" : "run",
+    demoIntervalMs: num(data.demoIntervalMs, 3000),
   };
 }

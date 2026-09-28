@@ -19,6 +19,7 @@ export default function PlaybackOverlay({
   svgRef,
   T = {},
   onChoose,
+  mode = "run",
 }) {
   const s = playback?.snapshot() ?? null;
   const token = s?.tokens?.[0] ?? null;
@@ -30,8 +31,15 @@ export default function PlaybackOverlay({
     () => (activeEdge ? edgeGeom(activeEdge, byId) : null),
     [activeEdge, byId],
   );
+  // Run mode: options appear while awaiting a branch or paused at a node.
+  // Demo mode: always available (during dwell and even mid-flight, where a
+  // click queues the branch for the destination being reached).
   const choices =
-    s && !token?.edge && !s.done && !playing ? playback.choices() : [];
+    s && !s.done && (s.awaiting || !playing || mode === "demo")
+      ? playback.choices()
+      : [];
+  const choicesNode =
+    (token?.edge && activeEdge && byId[activeEdge.to]) || activeNode;
   const tokenRef = useRef(null);
   const trailKey = useRef("");
 
@@ -122,10 +130,34 @@ export default function PlaybackOverlay({
           />
         </g>
       )}
+      {s.awaiting && choicesNode && (
+        <g pointerEvents="none">
+          <rect
+            x={choicesNode.x + choicesNode.w / 2 - 46}
+            y={choicesNode.y - 26}
+            width={92}
+            height={18}
+            rx={9}
+            fill={T?.accent || "#6366f1"}
+            opacity={0.95}
+          />
+          <text
+            x={choicesNode.x + choicesNode.w / 2}
+            y={choicesNode.y - 13}
+            textAnchor="middle"
+            fontSize={10}
+            fontWeight={700}
+            fontFamily="'JetBrains Mono', monospace"
+            fill={T?.bg || "#ffffff"}
+          >
+            Choose next…
+          </text>
+        </g>
+      )}
       {choices.length > 1 && (
         <g pointerEvents="all">
           {choices.map((c, i) => {
-            const n = byId[s.activeNode];
+            const n = choicesNode;
             if (!n) return null;
             const y = n.y + n.h + 10 + i * 24;
             return (

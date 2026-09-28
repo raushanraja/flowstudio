@@ -1,5 +1,21 @@
 import { Plus, Copy, Trash2, Mic, X, Route, Download, Upload, AlertTriangle } from "lucide-react";
 
+// Non-group nodes split into entry points (no incoming edge) and the rest,
+// for the scenario start-node picker.
+function startCandidates(nodes, edges) {
+  const real = nodes.filter((n) => n.type !== "group");
+  const ids = new Set(real.map((n) => n.id));
+  const incoming = new Set(
+    edges.filter((e) => ids.has(e.from) && ids.has(e.to)).map((e) => e.to),
+  );
+  const label = (n) => (n.text || "").split("\n")[0] || n.id;
+  return {
+    entries: real.filter((n) => !incoming.has(n.id)),
+    others: real.filter((n) => incoming.has(n.id)),
+    label,
+  };
+}
+
 // Decision nodes: non-group nodes with more than one outgoing edge.
 function decisionNodes(nodes, edges) {
   const ids = new Set(nodes.filter((n) => n.type !== "group").map((n) => n.id));
@@ -38,6 +54,7 @@ export default function ScenariosPanel({
   onRename,
   onDelete,
   onDuplicate,
+  onStart,
   onChoice,
   onLoopExit,
   onMaxLoopRetries,
@@ -49,6 +66,7 @@ export default function ScenariosPanel({
 }) {
   const active = scenarios.find((s) => s.id === activeScenarioId) || null;
   const decisions = decisionNodes(nodes, edges);
+  const starts = startCandidates(nodes, edges);
 
   return (
     <div
@@ -209,6 +227,32 @@ export default function ScenariosPanel({
               Record
             </label>
           </div>
+          <label className="fs-lbl" style={{ fontSize: 11 }}>
+            Start node
+            <select
+              className="fs-inp"
+              value={active.startId || ""}
+              onChange={(e) => onStart && onStart(active.id, e.target.value || null)}
+            >
+              <option value="">Auto (entry point / selection)</option>
+              {starts.entries.length > 0 && (
+                <optgroup label="Entry points">
+                  {starts.entries.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {starts.label(n)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="All nodes">
+                {starts.others.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {starts.label(n)}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
           <div
             style={{
               display: "flex",

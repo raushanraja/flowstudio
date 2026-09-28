@@ -69,6 +69,7 @@ export default function Canvas({
   playing,
   onPlaybackChoose,
   simMode,
+  playMode,
 }) {
   const editingNode = editing && byId[editing.id];
   const hasSelection = sel.nodes.length > 0 || sel.edges.length > 0;
@@ -402,6 +403,7 @@ export default function Canvas({
               svgRef={svgRef}
               T={T}
               onChoose={onPlaybackChoose}
+              mode={playMode}
             />
           )}
 
