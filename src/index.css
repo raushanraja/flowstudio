@@ -157,6 +157,36 @@ textarea {
   transform: translateY(-1px);
 }
 
+.fs-hud-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  border-radius: 9px;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fs-hud-btn:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: rgba(99, 102, 241, 0.25);
+  transform: translateY(-1px);
+}
+
+.fs-hud-btn.on {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
 .fs-palbtn {
   width: 44px;
   height: 52px;

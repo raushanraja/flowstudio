@@ -48,6 +48,7 @@ export default function Canvas({
   onQuickConnect,
   onResizeMouseDown,
   onEdgeMouseDown,
+  onEdgeDoubleClick,
   onLabelMouseDown,
   onMidpointMouseDown,
   onWaypointMouseDown,
@@ -165,6 +166,10 @@ export default function Canvas({
                         onEdgeMouseDown(ev, e);
                       }
                     }}
+                    onDoubleClick={(ev) => {
+                      ev.stopPropagation();
+                      if (onEdgeDoubleClick) onEdgeDoubleClick(ev, e);
+                    }}
                   >
                     {e.labelBg !== "transparent" && (
                       <rect
@@ -213,6 +218,10 @@ export default function Canvas({
                   strokeWidth={14 / z}
                   style={{ cursor: "pointer" }}
                   onMouseDown={(ev) => onEdgeMouseDown(ev, e)}
+                  onDoubleClick={(ev) => {
+                    ev.stopPropagation();
+                    if (onEdgeDoubleClick) onEdgeDoubleClick(ev, e);
+                  }}
                 />
                 {seld && !simMode && e.waypoints?.length > 0 &&
                   (() => {
@@ -582,6 +591,52 @@ export default function Canvas({
           }}
         />
       )}
+
+      {/* Edge Label Editing Input */}
+      {editing && !editingNode && byId && (() => {
+        const editingEdge = edges.find((ed) => ed.id === editing.id);
+        if (!editingEdge) return null;
+        const g = edgeGeom(editingEdge, byId);
+        if (!g) return null;
+        const valLen = (editing.value || "").length;
+        const inputW = Math.max(120, Math.min(260, (valLen + 4) * 9 * z));
+        const inputH = 30 * Math.max(0.85, Math.min(1.25, z));
+        return (
+          <input
+            autoFocus
+            type="text"
+            className="fs-edit"
+            value={editing.value}
+            placeholder="Link label..."
+            style={{
+              position: "absolute",
+              left: cam.x + g.mid.x * z - inputW / 2,
+              top: cam.y + g.mid.y * z - inputH / 2,
+              width: inputW,
+              height: inputH,
+              fontSize: Math.max(12, Math.round((editingEdge.fontSize || 12) * z)),
+              textAlign: "center",
+              borderRadius: 8,
+              padding: "3px 8px",
+              boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
+              border: "1.5px solid var(--accent)",
+              zIndex: 35,
+            }}
+            onChange={(e) => onEditChange(e.target.value)}
+            onBlur={onEditCommit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onEditCommit();
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                onEditCancel();
+              }
+            }}
+          />
+        );
+      })()}
 
       {/* Floating Selection Quick Toolbar with Node / Link Filter Toggle */}
       {hasSelection && !simMode && (

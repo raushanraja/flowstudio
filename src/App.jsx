@@ -985,6 +985,10 @@ export default function App() {
     e.stopPropagation();
     setEditing({ id: n.id, value: n.text });
   };
+  const onEdgeDoubleClick = (e, edge) => {
+    e.stopPropagation();
+    setEditing({ id: edge.id, value: edge.label || "" });
+  };
   const onNodeHover = (id) => setHover(id);
   const onNodeLeave = (id) => setHover((h) => (h === id ? null : h));
 
@@ -1302,7 +1306,8 @@ export default function App() {
   }
   const onQuickConnect = (node, side) => {
     pushUndo(serialize());
-    const [w, h] = [node.w, node.h];
+    const targetType = node.type === "group" ? "rect" : node.type;
+    const [targetW, targetH] = NODE_SIZES[targetType] || [180, 56];
     const GAP = 80;
     let destX = node.x;
     let destY = node.y;
@@ -1310,21 +1315,28 @@ export default function App() {
 
     if (side === "right") {
       destX = node.x + node.w + GAP;
+      destY = node.y + (node.h - targetH) / 2;
       toPort = "left";
     } else if (side === "left") {
-      destX = node.x - w - GAP;
+      destX = node.x - targetW - GAP;
+      destY = node.y + (node.h - targetH) / 2;
       toPort = "right";
     } else if (side === "bottom") {
+      destX = node.x + (node.w - targetW) / 2;
       destY = node.y + node.h + GAP;
       toPort = "top";
     } else if (side === "top") {
-      destY = node.y - h - GAP;
+      destX = node.x + (node.w - targetW) / 2;
+      destY = node.y - targetH - GAP;
       toPort = "bottom";
     }
 
     const newNode = {
       ...node,
       id: uid(),
+      type: targetType,
+      w: targetW,
+      h: targetH,
       x: sn(destX),
       y: sn(destY),
       text: "New Node",
@@ -1355,9 +1367,20 @@ export default function App() {
     if (!ids.length) return;
     pushUndo(serialize(), "morph_shape");
     setNodes((ns) =>
-      ns.map((n) =>
-        ids.includes(n.id) && n.type !== "group" ? { ...n, type: newType } : n
-      )
+      ns.map((n) => {
+        if (!ids.includes(n.id) || n.type === "group" || n.type === newType) return n;
+        const [targetW, targetH] = NODE_SIZES[newType] || [180, 56];
+        const cx = n.x + n.w / 2;
+        const cy = n.y + n.h / 2;
+        return {
+          ...n,
+          type: newType,
+          w: targetW,
+          h: targetH,
+          x: sn(cx - targetW / 2),
+          y: sn(cy - targetH / 2),
+        };
+      })
     );
   };
 
@@ -2352,6 +2375,7 @@ export default function App() {
         onQuickConnect={onQuickConnect}
         onResizeMouseDown={onResizeMouseDown}
         onEdgeMouseDown={onEdgeMouseDown}
+        onEdgeDoubleClick={onEdgeDoubleClick}
         onLabelMouseDown={onLabelMouseDown}
         onMidpointMouseDown={onMidpointMouseDown}
         onWaypointMouseDown={onWaypointMouseDown}
@@ -2360,16 +2384,27 @@ export default function App() {
         onEditCommit={() => {
           if (!editing) return;
           const n = byId[editing.id];
-          if (!n) {
+          if (n) {
+            pushUndo(serialize());
+            setNodes((ns) =>
+              ns.map((m) =>
+                m.id === n.id ? { ...m, text: editing.value } : m,
+              ),
+            );
             setEditing(null);
             return;
           }
-          pushUndo(serialize());
-          setNodes((ns) =>
-            ns.map((m) =>
-              m.id === n.id ? { ...m, text: editing.value } : m,
-            ),
-          );
+          const ed = edgesRef.current.find((e) => e.id === editing.id);
+          if (ed) {
+            pushUndo(serialize());
+            setEdges((es) =>
+              es.map((e) =>
+                e.id === ed.id ? { ...e, label: editing.value } : e,
+              ),
+            );
+            setEditing(null);
+            return;
+          }
           setEditing(null);
         }}
         onEditCancel={() => setEditing(null)}
@@ -2411,6 +2446,7 @@ export default function App() {
         onDuplicate={duplicate}
         onDelete={deleteSelection}
         onGroup={groupSel}
+        onEditLabel={(id, val) => setEditing({ id, value: val })}
       />
 
       {/* In-Canvas Search Modal */}
