@@ -22,6 +22,7 @@ A visual flowchart and diagram editor built with React and Vite. Design diagrams
 - Demo mode: continuous timed hops (global interval plus per-edge travel and per-node dwell overrides), holds at dead ends, then loops forever with a lap counter.
 - Background services: flag any node as a service (the Repeat toggle in Properties) to give it its own token that keeps cycling on its own interval while the main flow runs, even when the main token is waiting on a branch.
 - Step-by-step execution playback with animated edge pulses and active node glow.
+- Presenter mode: fullscreen-friendly playback with per-step notes that follow the active node.
 - Loop exit handling and manual branching choices during simulation.
 
 ### Smart Edge Routing & Waypoints
@@ -116,11 +117,13 @@ npm run preview
 | `Delete` / `Backspace` | Delete selected nodes and edges |
 | `Shift + Delete` | Delete only edge connections of selection |
 | `Enter` | Edit the label of the single selected node or link |
-| `Esc` | Cancel label editing, or clear the selection |
+| `Esc` | Cancel label editing, exit presenter mode, or clear the selection |
+| `P` | Toggle presenter mode during playback |
+| `S` | Toggle simulation view |
 | `Arrow Keys` | Nudge selection (hold `Shift` for fine 1px nudge) |
 | `Space` | Toggle simulation play / pause |
 | `,` / `.` | Step back / Step forward in simulation |
 | `V` | Switch to Select tool |
 | `H` | Switch to Pan tool |
-| `R` / `U` / `P` / `D` / `O` / `B` / `T` / `G` | Add Rectangle / Rounded / Pill / Diamond / Ellipse / Database / Text / Frame (placed around the last canvas click) |
+| `R` / `U` / `P` / `D` / `O` / `B` / `T` / `G` | Add Rectangle / Rounded / Pill / Diamond / Ellipse / Database / Text / Frame (outside playback, placed around the last canvas click) |
 

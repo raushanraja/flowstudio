@@ -142,6 +142,13 @@ export function normalizeDiagram(data) {
             loopExits[nodeId] = edgeId;
         }
       }
+      const notes = {};
+      if (s.notes && typeof s.notes === "object") {
+        for (const [nodeId, text] of Object.entries(s.notes)) {
+          if (idSet.has(nodeId) && typeof text === "string" && text.trim())
+            notes[nodeId] = text.slice(0, 2000);
+        }
+      }
       scenarios.push({
         id,
         name: String(s.name).slice(0, 60),
@@ -151,6 +158,7 @@ export function normalizeDiagram(data) {
             : undefined,
         choices,
         loopExits,
+        notes,
         maxLoopRetries: Number.isFinite(+s.maxLoopRetries) ? +s.maxLoopRetries : 1,
       });
     }

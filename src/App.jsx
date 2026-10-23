@@ -42,6 +42,7 @@ import ScenariosPanel from "./components/ScenariosPanel.jsx";
 import FloatingHUD from "./components/FloatingHUD.jsx";
 import CanvasSearch from "./components/CanvasSearch.jsx";
 import Minimap from "./components/Minimap.jsx";
+import PresenterOverlay from "./components/PresenterOverlay.jsx";
 
 const INITIAL = sampleDiagram();
 const STORAGE_KEY = "fs-document";
@@ -104,6 +105,7 @@ export default function App() {
   const [showScenarios, setShowScenarios] = useState(false);
   const [recording, setRecording] = useState(false);
   const [simMode, setSimMode] = useState(false);
+  const [presenter, setPresenter] = useState(false);
   const [sel, setSel] = useState({ nodes: [], edges: [] });
   const [cam, setCam] = useState(
     saved?.cam ?? { x: 20, y: 10, zoom: 1 },
@@ -165,6 +167,8 @@ export default function App() {
   editingRef.current = editing;
   const simModeRef = useRef(simMode);
   simModeRef.current = simMode;
+  const presenterRef = useRef(presenter);
+  presenterRef.current = presenter;
   const undoStack = useRef([]);
   const redoStack = useRef([]);
   const coalesce = useRef({});
@@ -270,7 +274,7 @@ export default function App() {
         setActiveScenarioId(id);
         return [
           ...list,
-          { id, name: `Scenario ${list.length + 1}`, choices: {}, startId: sid },
+          { id, name: `Scenario ${list.length + 1}`, choices: {}, startId: sid, notes: {} },
         ];
       }
       const cur = list.find((s) => s.id === id);
@@ -333,13 +337,45 @@ export default function App() {
     eng.reset();
     bumpFrame();
   };
+  // Presenter mode: fullscreen-friendly view with the active step's note.
+  const presenterRestoreSim = useRef(false);
+  const enterPresenter = () => {
+    if (!playbackRef.current) startPlayback();
+    presenterRestoreSim.current = simModeRef.current;
+    setIsSearchOpen(false);
+    setIsCmdPaletteOpen(false);
+    setIsExportModalOpen(false);
+    setShowScenarios(false);
+    setSimMode(true);
+    setPresenter(true);
+    const el = document.documentElement;
+    if (el.requestFullscreen && !document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {});
+    }
+  };
+  const exitPresenter = () => {
+    setPresenter(false);
+    if (!presenterRestoreSim.current) setSimMode(false);
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+  const togglePresenter = () => {
+    if (presenterRef.current) exitPresenter();
+    else enterPresenter();
+  };
   const closePlayback = () => {
+    if (presenterRef.current) exitPresenter();
     stopLoop();
     playbackRef.current = null;
     setPlayback(null);
     setPlayFrame(0);
   };
   const toggleSim = () => {
+    if (presenterRef.current) {
+      exitPresenter();
+      return;
+    }
     if (!playbackRef.current) startPlayback();
     setSimMode((v) => !v);
   };
@@ -359,7 +395,7 @@ export default function App() {
           setActiveScenarioId(id);
           return [
             ...list,
-            { id, name: `Scenario ${list.length + 1}`, choices: { [nodeId]: edgeId } },
+            { id, name: `Scenario ${list.length + 1}`, choices: { [nodeId]: edgeId }, notes: {} },
           ];
         }
         return list.map((s) =>
@@ -410,6 +446,8 @@ export default function App() {
     ],
     [nodes],
   );
+  const activeScenario =
+    scenarios.find((s) => s.id === activeScenarioId) || null;
   const serialize = () =>
     JSON.stringify({
       nodes: nodesRef.current,
@@ -1476,7 +1514,7 @@ export default function App() {
     const id = uid("sc");
     setScenarios((l) => [
       ...l,
-      { id, name: `Scenario ${l.length + 1}`, choices: {}, loopExits: {}, maxLoopRetries: 1 },
+      { id, name: `Scenario ${l.length + 1}`, choices: {}, loopExits: {}, notes: {}, maxLoopRetries: 1 },
     ]);
     setActiveScenarioId(id);
     setShowScenarios(true);
@@ -1499,6 +1537,7 @@ export default function App() {
           startId: s.startId,
           choices: { ...s.choices },
           loopExits: { ...(s.loopExits || {}) },
+          notes: { ...(s.notes || {}) },
           maxLoopRetries: s.maxLoopRetries ?? 1,
         },
       ];
@@ -1532,6 +1571,16 @@ export default function App() {
       l.map((s) =>
         s.id === id ? { ...s, maxLoopRetries: Math.max(1, count) } : s,
       ),
+    );
+  const setScenarioNote = (id, nodeId, text) =>
+    setScenarios((l) =>
+      l.map((s) => {
+        if (s.id !== id) return s;
+        const notes = { ...(s.notes || {}) };
+        if (text.trim()) notes[nodeId] = text.slice(0, 2000);
+        else delete notes[nodeId];
+        return { ...s, notes };
+      }),
     );
   const exportScenarios = () => {
     if (!scenariosRef.current.length) {
@@ -1601,7 +1650,18 @@ export default function App() {
               nodesNow.some((n) => n.id === s.startId && n.type !== "group")
                 ? s.startId
                 : undefined;
-            merged.push({ id: uid("sc"), name, startId, choices, loopExits, maxLoopRetries });
+            const notes = {};
+            if (s.notes && typeof s.notes === "object") {
+              for (const [nodeId, text] of Object.entries(s.notes)) {
+                if (
+                  nodesNow.some((n) => n.id === nodeId) &&
+                  typeof text === "string" &&
+                  text.trim()
+                )
+                  notes[nodeId] = text.slice(0, 2000);
+              }
+            }
+            merged.push({ id: uid("sc"), name, startId, choices, loopExits, notes, maxLoopRetries });
           }
           return merged;
         });
@@ -1720,6 +1780,10 @@ export default function App() {
     editSelection,
     escape: () => {
       setIsSearchOpen(false);
+      if (presenterRef.current) {
+        exitPresenter();
+        return;
+      }
       if (simModeRef.current) {
         setSimMode(false);
         return;
@@ -1754,6 +1818,7 @@ export default function App() {
     stepFwd,
     stepBack,
     closePlayback,
+    togglePresenter,
   };
   useEffect(() => {
     const h = (e) => {
@@ -1792,6 +1857,11 @@ export default function App() {
         if (!mod && k === "r") {
           e.preventDefault();
           A.restartPlayback();
+          return;
+        }
+        if (!mod && k === "p") {
+          e.preventDefault();
+          A.togglePresenter();
           return;
         }
         if (!mod && (e.key === "+" || e.key === "=")) {
@@ -1882,6 +1952,15 @@ export default function App() {
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
+  }, []);
+
+  // Leaving browser fullscreen (Esc / system gesture) also leaves presenter mode.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement && presenterRef.current) exitPresenter();
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
   /* ---------- theme harmonization ---------- */
@@ -2550,7 +2629,7 @@ export default function App() {
       />
 
       {/* Radar Minimap */}
-      {showMinimap && (
+      {showMinimap && !presenter && (
         <Minimap
           nodes={nodes}
           cam={cam}
@@ -2600,11 +2679,31 @@ export default function App() {
           onClose={closePlayback}
           onToggleScenarios={() => setShowScenarios((v) => !v)}
           onToggleSim={() => setSimMode((v) => !v)}
+          presenter={presenter}
+          onTogglePresenter={togglePresenter}
+        />
+      )}
+
+      {/* Presenter Note Overlay */}
+      {presenter && (
+        <PresenterOverlay
+          scenarioName={activeScenario?.name || null}
+          nodeLabel={
+            byId[playback?.snapshot()?.activeNode]?.text ||
+            playback?.snapshot()?.activeNode ||
+            ""
+          }
+          note={
+            activeScenario?.notes?.[playback?.snapshot()?.activeNode] || ""
+          }
+          steps={playback?.snapshot()?.steps || 0}
+          done={!!playback?.snapshot()?.done}
+          playing={playing}
         />
       )}
 
       {/* Scenarios Panel */}
-      {showScenarios && (
+      {showScenarios && !presenter && (
         <ScenariosPanel
           scenarios={scenarios}
           activeScenarioId={activeScenarioId}
@@ -2623,6 +2722,7 @@ export default function App() {
           onChoice={setScenarioChoice}
           onLoopExit={setScenarioLoopExit}
           onMaxLoopRetries={setScenarioMaxLoopRetries}
+          onNote={setScenarioNote}
           onRecording={(v) => setRecording(v)}
           onClose={() => setShowScenarios(false)}
           onExport={exportScenarios}

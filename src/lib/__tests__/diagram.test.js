@@ -116,6 +116,7 @@ describe("normalizeDiagram", () => {
           startId: "b",
           choices: { a: "e1", b: "e1", missing: "e1" },
           loopExits: { a: "nope" },
+          notes: { a: "Start here", b: "Finish", missing: "drop" },
           maxLoopRetries: 3,
         },
         { id: "s2", name: "Bad start", startId: "missing" },
@@ -131,6 +132,7 @@ describe("normalizeDiagram", () => {
       startId: "b",
       choices: { a: "e1" },
       loopExits: {},
+      notes: { a: "Start here", b: "Finish" },
       maxLoopRetries: 3,
     });
     expect(d.scenarios[1].startId).toBeUndefined();
@@ -143,5 +145,21 @@ describe("normalizeDiagram", () => {
       activeScenarioId: "missing",
     });
     expect(d.activeScenarioId).toBeNull();
+  });
+
+  it("drops blank step notes and caps long ones", () => {
+    const long = "x".repeat(2500);
+    const d = normalizeDiagram({
+      nodes: [{ id: "a", type: "rect" }],
+      scenarios: [
+        {
+          name: "Notes",
+          notes: { a: long, missing: "drop", b: "   " },
+        },
+      ],
+    });
+    expect(d.scenarios[0].notes.a).toHaveLength(2000);
+    expect(d.scenarios[0].notes.missing).toBeUndefined();
+    expect(d.scenarios[0].notes.b).toBeUndefined();
   });
 });

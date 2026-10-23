@@ -58,6 +58,7 @@ export default function ScenariosPanel({
   onChoice,
   onLoopExit,
   onMaxLoopRetries,
+  onNote,
   onRecording,
   onClose,
   onExport,
@@ -375,6 +376,60 @@ export default function ScenariosPanel({
               </div>
             );
           })}
+          <details>
+            <summary
+              style={{
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--muted)",
+                padding: "2px 0",
+                userSelect: "none",
+              }}
+            >
+              Step notes (
+              {
+                Object.values(active.notes || {}).filter((t) =>
+                  String(t || "").trim(),
+                ).length
+              }
+              )
+            </summary>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                marginTop: 6,
+              }}
+            >
+              {nodes
+                .filter((n) => n.type !== "group")
+                .map((n) => (
+                  <label
+                    key={n.id}
+                    className="fs-lbl"
+                    style={{ fontSize: 11 }}
+                  >
+                    {starts.label(n)}
+                    <textarea
+                      className="fs-inp"
+                      rows={2}
+                      value={active.notes?.[n.id] || ""}
+                      placeholder="Note shown while this node is active…"
+                      onChange={(e) => onNote(active.id, n.id, e.target.value)}
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "inherit",
+                        resize: "vertical",
+                        minHeight: 40,
+                        lineHeight: 1.4,
+                      }}
+                    />
+                  </label>
+                ))}
+            </div>
+          </details>
           {recording && (
             <div style={{ fontSize: 11, color: "var(--accent)", lineHeight: 1.5 }}>
               Recording: click a branch badge during playback to capture it

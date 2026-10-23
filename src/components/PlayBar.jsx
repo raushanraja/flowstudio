@@ -7,6 +7,8 @@ import {
   X,
   ListChecks,
   Presentation,
+  Maximize2,
+  Minimize2,
   AlertTriangle,
   Repeat,
 } from "lucide-react";
@@ -36,6 +38,8 @@ export default function PlayBar({
   onClose,
   onToggleScenarios,
   onToggleSim,
+  presenter = false,
+  onTogglePresenter,
   isRecording = false,
   recSeconds = 0,
   onToggleRecord,
@@ -334,7 +338,7 @@ export default function PlayBar({
       <span className="fs-sep" style={{ flexShrink: 0 }} />
 
       {/* Simulation Video Recording (WebM) */}
-      {onToggleRecord && (
+      {!presenter && onToggleRecord && (
         <button
           type="button"
           className={`fs-btn-ghost ${isRecording ? "on" : ""}`}
@@ -381,22 +385,40 @@ export default function PlayBar({
         </button>
       )}
 
-      <button
-        className="fs-btn-ghost"
-        title="Scenarios"
-        onClick={onToggleScenarios}
-        style={{ flexShrink: 0 }}
-      >
-        <ListChecks size={15} />
-      </button>
-      <button
-        className={`fs-btn-ghost ${simMode ? "on" : ""}`}
-        title={simMode ? "Exit simulation view (S / Esc)" : "Simulation view (S)"}
-        onClick={onToggleSim}
-        style={{ color: simMode ? "var(--accent)" : undefined, flexShrink: 0 }}
-      >
-        <Presentation size={15} />
-      </button>
+      {!presenter && (
+        <button
+          className="fs-btn-ghost"
+          title="Scenarios"
+          onClick={onToggleScenarios}
+          style={{ flexShrink: 0 }}
+        >
+          <ListChecks size={15} />
+        </button>
+      )}
+      {!presenter && (
+        <button
+          className={`fs-btn-ghost ${simMode ? "on" : ""}`}
+          title={simMode ? "Exit simulation view (S / Esc)" : "Simulation view (S)"}
+          onClick={onToggleSim}
+          style={{ color: simMode ? "var(--accent)" : undefined, flexShrink: 0 }}
+        >
+          <Presentation size={15} />
+        </button>
+      )}
+      {onTogglePresenter && (
+        <button
+          className={`fs-btn-ghost ${presenter ? "on" : ""}`}
+          title={
+            presenter
+              ? "Exit presenter mode (Esc)"
+              : "Presenter mode (P) — fullscreen with step notes"
+          }
+          onClick={onTogglePresenter}
+          style={{ color: presenter ? "var(--accent)" : undefined, flexShrink: 0 }}
+        >
+          {presenter ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+        </button>
+      )}
       <button className="fs-btn-ghost" title="Close playback (Esc)" onClick={onClose} style={{ flexShrink: 0 }}>
         <X size={15} />
       </button>
