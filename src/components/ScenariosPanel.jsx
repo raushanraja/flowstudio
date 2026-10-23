@@ -269,18 +269,17 @@ export default function ScenariosPanel({
             }}
           >
             <span>Max retries before exit:</span>
-            <select
+            <input
+              type="number"
               className="fs-inp"
+              min={1}
+              max={50}
+              step={1}
               value={active.maxLoopRetries ?? 1}
-              onChange={(e) => onMaxLoopRetries(active.id, +e.target.value)}
-              style={{ fontSize: 11, padding: "2px 6px" }}
-              title="Number of loop passes (e.g. 1 retry = 1-2-1-2-3 sequence)"
-            >
-              <option value={1}>1 retry (1-2-1-2-3)</option>
-              <option value={2}>2 retries</option>
-              <option value={3}>3 retries</option>
-              <option value={5}>5 retries</option>
-            </select>
+              onChange={(e) => onMaxLoopRetries(active.id, e.target.value)}
+              style={{ fontSize: 11, padding: "2px 6px", width: 64 }}
+              title="Number of loop passes before exiting (e.g. 1 retry = loop edge taken twice)"
+            />
           </div>
           {loopExited && (
             <div

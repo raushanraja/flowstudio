@@ -168,7 +168,9 @@ export function normalizeDiagram(data) {
         choices,
         loopExits,
         notes,
-        maxLoopRetries: Number.isFinite(+s.maxLoopRetries) ? +s.maxLoopRetries : 1,
+        maxLoopRetries: Number.isFinite(+s.maxLoopRetries)
+          ? Math.max(1, Math.min(50, Math.round(+s.maxLoopRetries)))
+          : 1,
       });
     }
   }

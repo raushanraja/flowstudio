@@ -143,6 +143,19 @@ describe("normalizeDiagram", () => {
     expect(d.activeScenarioId).toBe("s1");
   });
 
+  it("clamps custom loop retry counts", () => {
+    const d = normalizeDiagram({
+      nodes: [{ id: "a", type: "rect" }],
+      scenarios: [
+        { name: "Low", maxLoopRetries: 0 },
+        { name: "High", maxLoopRetries: 500 },
+        { name: "Fraction", maxLoopRetries: 2.6 },
+        { name: "Missing" },
+      ],
+    });
+    expect(d.scenarios.map((s) => s.maxLoopRetries)).toEqual([1, 50, 3, 1]);
+  });
+
   it("drops a loop exit that matches the default branch", () => {
     const d = normalizeDiagram({
       nodes: [

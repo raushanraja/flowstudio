@@ -1694,7 +1694,15 @@ export default function App() {
   const setScenarioMaxLoopRetries = (id, count) =>
     setScenarios((l) =>
       l.map((s) =>
-        s.id === id ? { ...s, maxLoopRetries: Math.max(1, count) } : s,
+        s.id === id
+          ? {
+              ...s,
+              maxLoopRetries: Math.max(
+                1,
+                Math.min(50, Math.round(Number(count) || 1)),
+              ),
+            }
+          : s,
       ),
     );
   const setScenarioNote = (id, nodeId, text) =>
@@ -1774,7 +1782,11 @@ export default function App() {
                 edgesNow.find((e) => e.from === nodeId)?.id;
               if (branch === loopExits[nodeId]) delete loopExits[nodeId];
             }
-            const maxLoopRetries = typeof s.maxLoopRetries === "number" ? Math.max(1, s.maxLoopRetries) : 1;
+            const maxLoopRetries =
+              typeof s.maxLoopRetries === "number" &&
+              Number.isFinite(s.maxLoopRetries)
+                ? Math.max(1, Math.min(50, Math.round(s.maxLoopRetries)))
+                : 1;
             const nodesNow = nodesRef.current;
             const startId =
               typeof s.startId === "string" &&
