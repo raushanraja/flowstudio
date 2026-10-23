@@ -143,6 +143,29 @@ describe("normalizeDiagram", () => {
     expect(d.activeScenarioId).toBe("s1");
   });
 
+  it("keeps valid per-visit step notes", () => {
+    const d = normalizeDiagram({
+      nodes: [{ id: "a", type: "rect" }],
+      scenarios: [
+        {
+          name: "Steps",
+          stepNotes: {
+            0: "Start",
+            2: "Second loop visit",
+            "3": 42,
+            "-1": "drop",
+            501: "drop",
+            x: "drop",
+          },
+        },
+      ],
+    });
+    expect(d.scenarios[0].stepNotes).toEqual({
+      0: "Start",
+      2: "Second loop visit",
+    });
+  });
+
   it("clamps custom loop retry counts", () => {
     const d = normalizeDiagram({
       nodes: [{ id: "a", type: "rect" }],

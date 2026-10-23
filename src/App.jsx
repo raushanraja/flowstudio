@@ -244,6 +244,7 @@ export default function App() {
             choices: {},
             loopExits: { [snap.loopNode]: last.edge },
             notes: {},
+            stepNotes: {},
             maxLoopRetries: 1,
           },
         ];
@@ -336,7 +337,7 @@ export default function App() {
         setActiveScenarioId(id);
         return [
           ...list,
-          { id, name: `Scenario ${list.length + 1}`, choices: {}, startId: sid, notes: {} },
+          { id, name: `Scenario ${list.length + 1}`, choices: {}, startId: sid, notes: {}, stepNotes: {} },
         ];
       }
       const cur = list.find((s) => s.id === id);
@@ -473,6 +474,7 @@ export default function App() {
               choices: { [nodeId]: edgeId },
               loopExits: {},
               notes: {},
+              stepNotes: {},
               maxLoopRetries: 1,
             },
           ];
@@ -576,6 +578,7 @@ export default function App() {
   }, [nodes, byId]);
   const activeScenario =
     scenarios.find((s) => s.id === activeScenarioId) || null;
+  const currentPlayback = playback?.snapshot() || null;
   const serialize = () =>
     JSON.stringify({
       nodes: nodesRef.current,
@@ -1723,7 +1726,7 @@ export default function App() {
     const id = uid("sc");
     setScenarios((l) => [
       ...l,
-      { id, name: `Scenario ${l.length + 1}`, choices: {}, loopExits: {}, notes: {}, maxLoopRetries: 1 },
+      { id, name: `Scenario ${l.length + 1}`, choices: {}, loopExits: {}, notes: {}, stepNotes: {}, maxLoopRetries: 1 },
     ]);
     setActiveScenarioId(id);
     setShowScenarios(true);
@@ -1747,6 +1750,7 @@ export default function App() {
           choices: { ...s.choices },
           loopExits: { ...(s.loopExits || {}) },
           notes: { ...(s.notes || {}) },
+          stepNotes: { ...(s.stepNotes || {}) },
           maxLoopRetries: s.maxLoopRetries ?? 1,
         },
       ];
@@ -1799,6 +1803,17 @@ export default function App() {
         if (text.trim()) notes[nodeId] = text.slice(0, 2000);
         else delete notes[nodeId];
         return { ...s, notes };
+      }),
+    );
+  const setScenarioStepNote = (id, index, text) =>
+    setScenarios((l) =>
+      l.map((s) => {
+        if (s.id !== id) return s;
+        const key = String(Math.max(0, Math.round(Number(index) || 0)));
+        const stepNotes = { ...(s.stepNotes || {}) };
+        if (text.trim()) stepNotes[key] = text.slice(0, 2000);
+        else delete stepNotes[key];
+        return { ...s, stepNotes };
       }),
     );
   const exportScenarios = () => {
@@ -1890,7 +1905,21 @@ export default function App() {
                   notes[nodeId] = text.slice(0, 2000);
               }
             }
-            merged.push({ id: uid("sc"), name, startId, choices, loopExits, notes, maxLoopRetries });
+            const stepNotes = {};
+            if (s.stepNotes && typeof s.stepNotes === "object") {
+              for (const [step, text] of Object.entries(s.stepNotes)) {
+                const index = Number(step);
+                if (
+                  Number.isInteger(index) &&
+                  index >= 0 &&
+                  index <= 500 &&
+                  typeof text === "string" &&
+                  text.trim()
+                )
+                  stepNotes[String(index)] = text.slice(0, 2000);
+              }
+            }
+            merged.push({ id: uid("sc"), name, startId, choices, loopExits, notes, stepNotes, maxLoopRetries });
           }
           return merged;
         });
@@ -2942,24 +2971,28 @@ export default function App() {
         <PresenterOverlay
           scenarioName={activeScenario?.name || null}
           nodeLabel={
-            byId[playback?.snapshot()?.activeNode]?.text ||
-            playback?.snapshot()?.activeNode ||
+            byId[currentPlayback?.activeNode]?.text ||
+            currentPlayback?.activeNode ||
             ""
           }
           note={
-            activeScenario?.notes?.[playback?.snapshot()?.activeNode] || ""
-          }
-          steps={playback?.snapshot()?.steps || 0}
-          done={!!playback?.snapshot()?.done}
-          playing={playing}
-          loopDetected={!!playback?.snapshot()?.loopDetected}
-          loopExited={!!playback?.snapshot()?.loopExited}
-          loopNodeLabel={
-            byId[playback?.snapshot()?.loopNode]?.text ||
-            playback?.snapshot()?.loopNode ||
+            activeScenario?.stepNotes?.[
+              String(currentPlayback?.steps || 0)
+            ] ||
+            activeScenario?.notes?.[currentPlayback?.activeNode] ||
             ""
           }
-          laps={playback?.snapshot()?.laps || 0}
+          steps={currentPlayback?.steps || 0}
+          done={!!currentPlayback?.done}
+          playing={playing}
+          loopDetected={!!currentPlayback?.loopDetected}
+          loopExited={!!currentPlayback?.loopExited}
+          loopNodeLabel={
+            byId[currentPlayback?.loopNode]?.text ||
+            currentPlayback?.loopNode ||
+            ""
+          }
+          laps={currentPlayback?.laps || 0}
           mode={playMode}
         />
       )}
@@ -2985,11 +3018,13 @@ export default function App() {
           onLoopExit={setScenarioLoopExit}
           onMaxLoopRetries={setScenarioMaxLoopRetries}
           onNote={setScenarioNote}
+          onStepNote={setScenarioStepNote}
           onRecording={(v) => setRecording(v)}
           onClose={() => setShowScenarios(false)}
           onExport={exportScenarios}
           onImport={() => scenariosFileRef.current?.click()}
           simMode={simMode}
+          selectedNodeId={sel.nodes.length === 1 ? sel.nodes[0] : null}
         />
       )}
 

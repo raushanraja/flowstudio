@@ -23,7 +23,8 @@ A visual flowchart and diagram editor built with React and Vite. Design diagrams
 - Demo mode: continuous timed hops (global interval plus per-edge travel and per-node dwell overrides), holds at dead ends, then loops forever with a lap counter.
 - Background services: flag any node as a service (the Repeat toggle in Properties) to give it its own token that keeps cycling on its own interval while the main flow runs, even when the main token is waiting on a branch.
 - Step-by-step execution playback with animated edge pulses and active node glow.
-- Presenter mode: fullscreen-friendly playback with per-step notes that follow the active node.
+- Presenter mode: fullscreen-friendly playback with per-visit step notes driven by a scenario run-path preview.
+- Scenario run-path preview shows every hop, loop retry, and loop exit; each visit can carry its own note.
 - Loop detection handles branch-driven loops and decision-free cycles using the scenario retry count, with exit/detection status surfaced in presenter mode.
 - Loop exit handling and manual branching choices during simulation.
 

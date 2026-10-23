@@ -114,7 +114,7 @@ FlowStudio's simulation and scenario execution is its biggest unique differentia
     * **GIF export** for inclusion in GitHub READMEs, changelogs, and slide decks.
 
 ### 5.2 Scenario Step Annotations & Presenter Mode
-* **Status:** ✅ **Completed** — scenarios carry a `notes` map keyed by node id; notes are edited under **Step notes** in the Scenarios panel and surface as a callout in fullscreen presenter mode (`P`).
+* **Status:** ✅ **Completed** — the Scenarios panel previews the configured run path and stores a note per step index, so loop revisits can show different notes. Node-level notes remain as a fallback. Presenter mode (`P`) shows the active step's note in fullscreen.
 * **Problem:** Sharing a simulation with stakeholders requires live verbal explanations because steps only highlight nodes and edges without explanatory commentary.
 * **Proposed Solution:**
   * Allow attaching markdown notes/captions to individual scenario steps (e.g., *"Step 3: Cache miss triggers database query with read replica fallback"*).

@@ -519,3 +519,95 @@ export function createPlayback({
 
   return engine;
 }
+
+/**
+ * Deterministically walk a scenario with the configured choices and loop
+ * settings, returning the ordered run path. Step indices match the playback
+ * engine's `snapshot().steps`, so step index 0 is the start node and step N is
+ * the node after N hops.
+ */
+export function previewScenario({
+  nodes = [],
+  edges = [],
+  startId = undefined,
+  choices = {},
+  loopExits = {},
+  maxLoopRetries = 1,
+  maxSteps = 200,
+} = {}) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const edgeById = new Map(edges.map((e) => [e.id, e]));
+  const label = (id) => {
+    const n = byId.get(id);
+    return (n?.text || id || "").split("\n")[0];
+  };
+
+  const engine = createPlayback({
+    nodes,
+    edges,
+    startId,
+    choices,
+    loopExits,
+    maxLoopRetries,
+    mode: "run",
+  });
+  const initial = engine.snapshot();
+  const empty = {
+    steps: [],
+    loopDetected: false,
+    loopExited: false,
+    complete: true,
+  };
+  if (!initial.activeNode) return empty;
+
+  const steps = [
+    {
+      index: 0,
+      nodeId: initial.activeNode,
+      nodeLabel: label(initial.activeNode),
+      fromId: null,
+      fromLabel: "",
+      edgeId: null,
+      edgeLabel: "",
+      loopExited: false,
+      loopDetected: false,
+    },
+  ];
+
+  let prevSteps = 0;
+  let prevExited = false;
+  let prevDetected = false;
+  for (let i = 0; i < Math.max(1, maxSteps); i++) {
+    engine.hop();
+    const snap = engine.snapshot();
+    const hop = snap.history[snap.history.length - 1];
+    if (!hop || (snap.steps === prevSteps && !snap.done)) break;
+    const exitedNow = snap.loopExited && !prevExited;
+    const detectedNow = snap.loopDetected && !prevDetected;
+    prevExited = snap.loopExited;
+    prevDetected = snap.loopDetected;
+    const edge = hop.edge ? edgeById.get(hop.edge) : null;
+    steps.push({
+      index: snap.steps,
+      nodeId: hop.to,
+      nodeLabel: label(hop.to),
+      fromId: hop.node,
+      fromLabel: label(hop.node),
+      edgeId: hop.edge || null,
+      edgeLabel: edge?.label || "",
+      loopExited: exitedNow,
+      loopDetected: detectedNow,
+    });
+    prevSteps = snap.steps;
+    if (snap.done) break;
+  }
+
+  const final = engine.snapshot();
+  return {
+    steps,
+    loopDetected: final.loopDetected,
+    loopExited: final.loopExited,
+    complete: final.done && !final.loopDetected,
+    truncated: !final.done && final.steps >= maxSteps,
+  };
+}

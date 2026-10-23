@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { Plus, Copy, Trash2, Mic, X, Route, Download, Upload, AlertTriangle } from "lucide-react";
+import { previewScenario } from "../lib/playback.js";
 
 // Non-group nodes split into entry points (no incoming edge) and the rest,
 // for the scenario start-node picker.
@@ -59,15 +61,31 @@ export default function ScenariosPanel({
   onLoopExit,
   onMaxLoopRetries,
   onNote,
+  onStepNote,
   onRecording,
   onClose,
   onExport,
   onImport,
   simMode,
+  selectedNodeId,
 }) {
   const active = scenarios.find((s) => s.id === activeScenarioId) || null;
   const decisions = decisionNodes(nodes, edges);
   const starts = startCandidates(nodes, edges);
+  const pathPreview = useMemo(
+    () =>
+      active
+        ? previewScenario({
+            nodes,
+            edges,
+            startId: active.startId || selectedNodeId || undefined,
+            choices: active.choices,
+            loopExits: active.loopExits,
+            maxLoopRetries: active.maxLoopRetries ?? 1,
+          })
+        : null,
+    [active, nodes, edges, selectedNodeId],
+  );
 
   return (
     <div
@@ -380,6 +398,159 @@ export default function ScenariosPanel({
               </div>
             );
           })}
+          <details open>
+            <summary
+              style={{
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--muted)",
+                padding: "2px 0",
+                userSelect: "none",
+              }}
+            >
+              Run path & step notes ({pathPreview?.steps.length || 0} steps)
+            </summary>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                marginTop: 6,
+              }}
+            >
+              {pathPreview?.steps.length === 0 && (
+                <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}>
+                  Set a start node or add a non-group node to preview the path.
+                </div>
+              )}
+              {pathPreview?.steps.map((st) => (
+                <div
+                  key={st.index}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 3,
+                    padding: "4px 6px",
+                    borderRadius: 8,
+                    background: "var(--panel-solid)",
+                    border: `1px solid ${
+                      st.loopDetected
+                        ? "rgba(245, 158, 11, 0.5)"
+                        : st.loopExited
+                          ? "var(--accent)"
+                          : "var(--border)"
+                    }`,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 11,
+                      minWidth: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        color: "var(--muted)",
+                        minWidth: 16,
+                        fontSize: 10,
+                      }}
+                    >
+                      {st.index}
+                    </span>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {st.nodeLabel}
+                    </span>
+                    {st.edgeLabel && (
+                      <span
+                        style={{
+                          color: "var(--muted)",
+                          fontSize: 10,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        via {st.edgeLabel}
+                      </span>
+                    )}
+                    {st.loopExited && (
+                      <span
+                        style={{
+                          marginLeft: "auto",
+                          color: "var(--accent)",
+                          fontSize: 9,
+                          fontWeight: 800,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        loop exit
+                      </span>
+                    )}
+                    {st.loopDetected && (
+                      <span
+                        style={{
+                          marginLeft: "auto",
+                          color: "#f59e0b",
+                          fontSize: 9,
+                          fontWeight: 800,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        loop detected
+                      </span>
+                    )}
+                  </div>
+                  <textarea
+                    className="fs-inp"
+                    rows={1}
+                    value={active.stepNotes?.[st.index] || ""}
+                    placeholder={
+                      active.notes?.[st.nodeId]
+                        ? "Visit note (node note is the fallback)…"
+                        : "Note for this visit…"
+                    }
+                    onChange={(e) =>
+                      onStepNote(active.id, st.index, e.target.value)
+                    }
+                    style={{
+                      fontSize: 11,
+                      fontFamily: "inherit",
+                      resize: "vertical",
+                      minHeight: 30,
+                      lineHeight: 1.35,
+                    }}
+                  />
+                </div>
+              ))}
+              {pathPreview?.loopDetected && (
+                <div style={{ fontSize: 10, color: "#f59e0b", lineHeight: 1.45 }}>
+                  This path has no exit branch at the highlighted step. Add a
+                  decision edge or change a branch choice.
+                </div>
+              )}
+              {pathPreview?.truncated && (
+                <div style={{ fontSize: 10, color: "var(--muted)" }}>
+                  Path preview stopped after {pathPreview.steps.length} steps.
+                </div>
+              )}
+            </div>
+          </details>
           <details>
             <summary
               style={{
@@ -391,7 +562,7 @@ export default function ScenariosPanel({
                 userSelect: "none",
               }}
             >
-              Step notes (
+              Node notes (fallback) (
               {
                 Object.values(active.notes || {}).filter((t) =>
                   String(t || "").trim(),
@@ -420,7 +591,7 @@ export default function ScenariosPanel({
                       className="fs-inp"
                       rows={2}
                       value={active.notes?.[n.id] || ""}
-                      placeholder="Note shown while this node is active…"
+                      placeholder="Fallback note for visits without a step note…"
                       onChange={(e) => onNote(active.id, n.id, e.target.value)}
                       style={{
                         fontSize: 11,

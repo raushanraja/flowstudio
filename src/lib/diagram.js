@@ -151,6 +151,20 @@ export function normalizeDiagram(data) {
             notes[nodeId] = text.slice(0, 2000);
         }
       }
+      const stepNotes = {};
+      if (s.stepNotes && typeof s.stepNotes === "object") {
+        for (const [step, text] of Object.entries(s.stepNotes)) {
+          const index = Number(step);
+          if (
+            Number.isInteger(index) &&
+            index >= 0 &&
+            index <= 500 &&
+            typeof text === "string" &&
+            text.trim()
+          )
+            stepNotes[String(index)] = text.slice(0, 2000);
+        }
+      }
       // A "loop exit" that is also the branch actually taken (explicit or the
       // implicit first-edge default) can never fire.
       for (const nodeId of Object.keys(loopExits)) {
@@ -168,6 +182,7 @@ export function normalizeDiagram(data) {
         choices,
         loopExits,
         notes,
+        stepNotes,
         maxLoopRetries: Number.isFinite(+s.maxLoopRetries)
           ? Math.max(1, Math.min(50, Math.round(+s.maxLoopRetries)))
           : 1,
