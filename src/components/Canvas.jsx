@@ -56,6 +56,7 @@ export default function Canvas({
   onWaypointDoubleClick,
   onEditChange,
   onEditCommit,
+  onEditCancel,
   onZoomIn,
   onZoomOut,
   onFit,
@@ -622,7 +623,7 @@ export default function Canvas({
             }
             if (e.key === "Escape") {
               e.preventDefault();
-              onEditCommit();
+              onEditCancel();
             }
           }}
         />
@@ -668,7 +669,7 @@ export default function Canvas({
               }
               if (e.key === "Escape") {
                 e.preventDefault();
-                onEditCommit();
+                onEditCancel();
               }
             }}
           />

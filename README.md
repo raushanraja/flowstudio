@@ -116,6 +116,7 @@ npm run preview
 | `Delete` / `Backspace` | Delete selected nodes and edges |
 | `Shift + Delete` | Delete only edge connections of selection |
 | `Enter` | Edit the label of the single selected node or link |
+| `Esc` | Cancel label editing, or clear the selection |
 | `Arrow Keys` | Nudge selection (hold `Shift` for fine 1px nudge) |
 | `Space` | Toggle simulation play / pause |
 | `,` / `.` | Step back / Step forward in simulation |

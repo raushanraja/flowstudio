@@ -542,7 +542,7 @@ export default function App() {
     };
   }
   function addNode(type) {
-    commitEditing();
+    commitEdit();
     const [w, h] = NODE_SIZES[type] || [180, 56];
     const nodes = nodesRef.current;
     const r = wrapRef.current.getBoundingClientRect();
@@ -611,55 +611,8 @@ export default function App() {
   }
 
   /* ---------- mouse interactions ---------- */
-  // Any exit from text editing saves — clicking elsewhere, Esc, switching
-  // nodes, panning, etc. There is no "discard" path: whatever the user typed
-  // becomes the label.
-  function commitEditing() {
-    if (!editing) return;
-    const n = byId[editing.id];
-    if (n) {
-      const text = editing.value;
-      if (text === n.text) {
-        setEditing(null);
-        return;
-      }
-      pushUndo(serialize());
-      let sizePatch = {};
-      if (n.type === "textarea" || n.type === "text") {
-        const lines = (text || "").split("\n");
-        const maxLen = Math.max(0, ...lines.map((l) => l.length));
-        const fz = n.fontSize || 14;
-        const charW = fz * 0.62;
-        const lh = fz * 1.35;
-        const padX = 28;
-        const padY = 28;
-        const fitW = Math.max(n.w, Math.round(maxLen * charW + padX));
-        const fitH = Math.max(n.h, Math.round(lines.length * lh + padY));
-        sizePatch = { w: fitW, h: fitH };
-      }
-      setNodes((ns) =>
-        ns.map((m) => (m.id === n.id ? { ...m, text, ...sizePatch } : m)),
-      );
-      setEditing(null);
-      return;
-    }
-    const ed = edgesRef.current.find((e) => e.id === editing.id);
-    if (ed) {
-      if (editing.value === (ed.label || "")) {
-        setEditing(null);
-        return;
-      }
-      pushUndo(serialize());
-      setEdges((es) =>
-        es.map((e) => (e.id === ed.id ? { ...e, label: editing.value } : e)),
-      );
-      setEditing(null);
-      return;
-    }
-    setEditing(null);
-  }
   function onCanvasMouseDown(e) {
-    commitEditing();
+    commitEdit();
     if (e.button === 1 || tool === "pan" || e.altKey) {
       if (e.button === 1) e.preventDefault();
       const s = { x: e.clientX, y: e.clientY, cam: { ...camRef.current } };
@@ -705,7 +658,7 @@ export default function App() {
     setEditing({ id: n.id, value: "" });
   }
   function onNodeMouseDown(e, node) {
-    commitEditing();
+    commitEdit();
     if (tool === "pan") return;
     e.stopPropagation();
     if (e.button !== 0) return;
@@ -846,7 +799,7 @@ export default function App() {
     );
   }
   function onPortMouseDown(e, node, side) {
-    commitEditing();
+    commitEdit();
     if (tool === "pan") return;
     e.stopPropagation();
     e.preventDefault();
@@ -2389,12 +2342,17 @@ export default function App() {
 
   // Commit the in-progress text/label edit. Safe to call repeatedly: the
   // ref is cleared first so blur + click-outside can't double-commit.
+  // No-ops when the text did not change so empty edits don't pollute undo.
   function commitEdit() {
     const ed = editingRef.current;
     if (!ed) return;
     editingRef.current = null;
     const n = byId[ed.id];
     if (n) {
+      if (ed.value === (n.text ?? "")) {
+        setEditing(null);
+        return;
+      }
       pushUndo(serialize());
       let sizePatch = {};
       if (n.type === "textarea" || n.type === "text") {
@@ -2417,11 +2375,21 @@ export default function App() {
     }
     const edge = edgesRef.current.find((e) => e.id === ed.id);
     if (edge) {
+      if (ed.value === (edge.label || "")) {
+        setEditing(null);
+        return;
+      }
       pushUndo(serialize());
       setEdges((es) =>
         es.map((e) => (e.id === edge.id ? { ...e, label: ed.value } : e)),
       );
     }
+    setEditing(null);
+  }
+  // Discard the in-progress edit (Esc) without touching the document.
+  function cancelEdit() {
+    if (!editingRef.current) return;
+    editingRef.current = null;
     setEditing(null);
   }
   const commitEditRef = useRef(null);
@@ -2528,6 +2496,7 @@ export default function App() {
         onWaypointDoubleClick={onWaypointDoubleClick}
         onEditChange={(v) => setEditing((ed) => ({ ...ed, value: v }))}
         onEditCommit={commitEdit}
+        onEditCancel={cancelEdit}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onFit={fitView}
