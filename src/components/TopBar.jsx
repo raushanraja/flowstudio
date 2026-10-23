@@ -12,6 +12,8 @@ import {
   SlidersHorizontal,
   Presentation,
   Sparkles,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { nextTheme, THEME_LABELS, isDarkTheme } from "../lib/theme.js";
 
@@ -28,6 +30,9 @@ export default function TopBar({
   onToggleInspector,
   isInspectorOpen,
   onToggleSim,
+  hiddenCount = 0,
+  showHidden = false,
+  onToggleShowHidden,
 }) {
   return (
     <div
@@ -117,6 +122,27 @@ export default function TopBar({
       <button className="fs-btn-ghost" title="Redo (Ctrl+Shift+Z)" onClick={onRedo}>
         <Redo2 size={15} />
       </button>
+
+      {hiddenCount > 0 && (
+        <button
+          className={`fs-btn-ghost ${showHidden ? "on" : ""}`}
+          title={
+            showHidden
+              ? "Hide ghosted nodes"
+              : `Reveal ${hiddenCount} hidden node${hiddenCount > 1 ? "s" : ""}`
+          }
+          onClick={onToggleShowHidden}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            color: showHidden ? "var(--accent)" : undefined,
+          }}
+        >
+          {showHidden ? <Eye size={15} /> : <EyeOff size={15} />}
+          <span style={{ fontSize: 10, fontWeight: 700 }}>{hiddenCount}</span>
+        </button>
+      )}
 
       <span className="fs-sep" />
 

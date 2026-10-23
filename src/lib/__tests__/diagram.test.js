@@ -22,6 +22,8 @@ describe("normalizeDiagram", () => {
           fontSize: "big",
           text: 42,
           dashed: "yes",
+          locked: 1,
+          hidden: "true",
         },
       ],
     });
@@ -37,6 +39,8 @@ describe("normalizeDiagram", () => {
       fontSize: 14,
       text: "",
       dashed: true,
+      locked: true,
+      hidden: true,
       parentId: null,
     });
   });

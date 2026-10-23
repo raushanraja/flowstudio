@@ -44,6 +44,8 @@ export function normalizeDiagram(data) {
       text: str(n.text, ""),
       badge: str(n.badge, ""),
       dashed: !!n.dashed,
+      locked: !!n.locked,
+      hidden: !!n.hidden,
       parentId: null,
       dwellMs:
         Number.isFinite(+n.dwellMs) && +n.dwellMs >= 0

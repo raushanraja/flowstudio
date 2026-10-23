@@ -33,6 +33,8 @@ export default function Canvas({
   ordered,
   edges,
   byId,
+  lockedIds,
+  ghostIds,
   sel,
   hover,
   marquee,
@@ -148,8 +150,9 @@ export default function Canvas({
             const g = edgeGeom(e, byId);
             if (!g) return null;
             const seld = sel.edges.includes(e.id);
+            const isGhost = !!ghostIds?.has(e.from) || !!ghostIds?.has(e.to);
             return (
-              <g key={e.id}>
+              <g key={e.id} opacity={isGhost ? 0.22 : undefined}>
                 {seld && !simMode && (
                   <path
                     data-overlay
@@ -303,10 +306,13 @@ export default function Canvas({
             const isSel = sel.nodes.includes(n.id);
             const isHovered = hover === n.id;
             const isDrop = dropTarget === n.id;
+            const isLocked = !!lockedIds?.has(n.id);
+            const isGhost = !!ghostIds?.has(n.id);
 
             return (
               <g
                 key={n.id}
+                opacity={isGhost ? 0.22 : undefined}
                 onMouseDown={(e) => onNodeMouseDown(e, n)}
                 onDoubleClick={simMode ? undefined : (e) => onNodeDoubleClick(e, n)}
                 onMouseEnter={() => onNodeHover(n.id)}
@@ -374,7 +380,7 @@ export default function Canvas({
                 )}
 
                 {/* Connection Ports */}
-                {(isSel || isHovered) && !simMode &&
+                {(isSel || isHovered) && !simMode && !isLocked && !isGhost &&
                   ["top", "right", "bottom", "left"].map((side) => {
                     const p = portPos(n, side);
                     return (
@@ -394,7 +400,7 @@ export default function Canvas({
                   })}
 
                 {/* Quick-Connect + Handles */}
-                {isSel && !simMode && n.type !== "group" &&
+                {isSel && !simMode && !isLocked && !isGhost && n.type !== "group" &&
                   ["top", "right", "bottom", "left"].map((side) => {
                     const p = portPos(n, side);
                     const qDist = 18 / z;
@@ -497,6 +503,8 @@ export default function Canvas({
                 {/* Corner Resize Handles */}
                 {isSel &&
                   !simMode &&
+                  !isLocked &&
+                  !isGhost &&
                   sel.nodes.length === 1 &&
                   [
                     ["nw", n.x, n.y],

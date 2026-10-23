@@ -15,6 +15,7 @@ import {
 } from "./lib/theme.js";
 import { normalizeDiagram } from "./lib/diagram.js";
 import { sampleDiagram } from "./lib/sample.js";
+import { hiddenNodeIds, reorderNodeSelection, visibleDiagram } from "./lib/layers.js";
 import { extractMermaidSource, mermaidTextToDiagram } from "./lib/mermaid.js";
 import { createPlayback, DEFAULT_HOP_MS } from "./lib/playback.js";
 import { uid, clamp } from "./lib/utils.js";
@@ -106,6 +107,7 @@ export default function App() {
   const [recording, setRecording] = useState(false);
   const [simMode, setSimMode] = useState(false);
   const [presenter, setPresenter] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [sel, setSel] = useState({ nodes: [], edges: [] });
   const [cam, setCam] = useState(
     saved?.cam ?? { x: 20, y: 10, zoom: 1 },
@@ -439,13 +441,47 @@ export default function App() {
     () => Object.fromEntries(nodes.map((n) => [n.id, n])),
     [nodes],
   );
+  const hiddenIds = useMemo(() => hiddenNodeIds(nodes), [nodes]);
+  const renderNodes = useMemo(
+    () => (showHidden ? nodes : nodes.filter((n) => !hiddenIds.has(n.id))),
+    [nodes, hiddenIds, showHidden],
+  );
+  const renderEdges = useMemo(
+    () =>
+      showHidden
+        ? edges
+        : edges.filter(
+            (e) => !hiddenIds.has(e.from) && !hiddenIds.has(e.to),
+          ),
+    [edges, hiddenIds, showHidden],
+  );
   const ordered = useMemo(
     () => [
-      ...nodes.filter((n) => n.type === "group"),
-      ...nodes.filter((n) => n.type !== "group"),
+      ...renderNodes.filter((n) => n.type === "group"),
+      ...renderNodes.filter((n) => n.type !== "group"),
     ],
-    [nodes],
+    [renderNodes],
   );
+  const lockedIds = useMemo(() => {
+    const memo = new Map();
+    const isLocked = (n) => {
+      const chain = [];
+      let cur = n;
+      while (cur && !memo.has(cur.id)) {
+        if (chain.includes(cur.id)) break;
+        chain.push(cur.id);
+        if (cur.locked) {
+          chain.forEach((id) => memo.set(id, true));
+          return true;
+        }
+        cur = cur.parentId ? byId[cur.parentId] : null;
+      }
+      const inherited = cur ? !!memo.get(cur.id) : false;
+      chain.forEach((id) => memo.set(id, inherited));
+      return inherited;
+    };
+    return new Set(nodes.filter(isLocked).map((n) => n.id));
+  }, [nodes, byId]);
   const activeScenario =
     scenarios.find((s) => s.id === activeScenarioId) || null;
   const serialize = () =>
@@ -712,6 +748,9 @@ export default function App() {
       ids = [node.id];
       setSel({ nodes: ids, edges: e.shiftKey ? sel.edges : [] });
     }
+    // Locked (or ghosted hidden) nodes can be selected so the inspector can
+    // unlock/unhide them, but never dragged.
+    if (lockedIds.has(node.id) || (node.hidden && showHidden)) return;
     // Paused playback: clicking a directly-connected node routes the token
     // to it (single-edge hops happen immediately; multi-edge decisions are
     // handled by the branch badges).
@@ -730,7 +769,7 @@ export default function App() {
         }
       }
     }
-    const moveSet = expandGroups(ids);
+    const moveSet = expandGroups(ids).filter((id) => !lockedIds.has(id));
     const orig = {};
     nodesRef.current.forEach((n) => {
       if (moveSet.includes(n.id)) orig[n.id] = { x: n.x, y: n.y };
@@ -758,7 +797,7 @@ export default function App() {
           nodesRef.current
             .filter((n) => moveSet.includes(n.id))
             .forEach((n) => {
-              const c = { ...n, id: uid(), parentId: null };
+              const c = { ...n, id: uid(), parentId: null, locked: false, hidden: false };
               idMap[n.id] = c.id;
               clones.push(c);
             });
@@ -838,7 +877,7 @@ export default function App() {
   }
   function onPortMouseDown(e, node, side) {
     commitEdit();
-    if (tool === "pan") return;
+    if (tool === "pan" || lockedIds.has(node.id)) return;
     e.stopPropagation();
     e.preventDefault();
     const p = worldFromEvent(e);
@@ -887,6 +926,7 @@ export default function App() {
     );
   }
   function onResizeMouseDown(e, n, handle) {
+    if (lockedIds.has(n.id)) return;
     e.stopPropagation();
     e.preventDefault();
     const p0 = worldFromEvent(e);
@@ -1040,6 +1080,7 @@ export default function App() {
   }
   const onNodeDoubleClick = (e, n) => {
     e.stopPropagation();
+    if (lockedIds.has(n.id)) return;
     setEditing({ id: n.id, value: n.text });
   };
   const onEdgeDoubleClick = (e, edge) => {
@@ -1053,7 +1094,7 @@ export default function App() {
     const { nodes: selNodes, edges: selEdges } = selRef.current;
     if (selNodes.length === 1 && !selEdges.length) {
       const n = nodesRef.current.find((m) => m.id === selNodes[0]);
-      if (!n) return false;
+      if (!n || lockedIds.has(n.id)) return false;
       setEditing({ id: n.id, value: n.text ?? "", selectAll: true });
       return true;
     }
@@ -1071,7 +1112,10 @@ export default function App() {
   /* ---------- selection ops ---------- */
   function deleteSelection() {
     const snapShot = serialize();
-    const ids = new Set(selRef.current.nodes);
+    // Locked nodes are protected from deletion; explicitly selected edges still go.
+    const ids = new Set(
+      selRef.current.nodes.filter((id) => !lockedIds.has(id)),
+    );
     const eids = new Set(selRef.current.edges);
     if (!ids.size && !eids.size) return;
     pushUndo(snapShot);
@@ -1088,9 +1132,11 @@ export default function App() {
     setSel({ nodes: [], edges: [] });
   }
   // Remove connections only: every selected edge plus every edge attached to a
-  // selected node. Nodes themselves are kept.
+  // selected (unlocked) node. Nodes themselves are kept.
   function deleteConnections() {
-    const ids = new Set(selRef.current.nodes);
+    const ids = new Set(
+      selRef.current.nodes.filter((id) => !lockedIds.has(id)),
+    );
     const eids = new Set(selRef.current.edges);
     if (!ids.size && !eids.size) return;
     const victims = edgesRef.current.filter(
@@ -1102,6 +1148,57 @@ export default function App() {
     setEdges((es) => es.filter((e) => !gone.has(e.id)));
     setSel((s) => ({ ...s, edges: [] }));
   }
+  /* ---------- lock / visibility / layers ---------- */
+  function toggleLock() {
+    const ids = new Set(selRef.current.nodes);
+    if (!ids.size) return;
+    const anyUnlocked = nodesRef.current.some(
+      (n) => ids.has(n.id) && !n.locked,
+    );
+    pushUndo(serialize());
+    setNodes((ns) =>
+      ns.map((n) => (ids.has(n.id) ? { ...n, locked: anyUnlocked } : n)),
+    );
+  }
+  function toggleHidden() {
+    const ids = new Set(selRef.current.nodes);
+    if (!ids.size) return;
+    const anyVisible = nodesRef.current.some(
+      (n) => ids.has(n.id) && !hiddenIds.has(n.id),
+    );
+    pushUndo(serialize());
+    if (anyVisible) {
+      setNodes((ns) =>
+        ns.map((n) => (ids.has(n.id) ? { ...n, hidden: true } : n)),
+      );
+      setShowHidden(false);
+      return;
+    }
+    // Revealing a node also unveils any hidden ancestors.
+    const unveil = new Set(ids);
+    nodesRef.current.forEach((n) => {
+      if (!ids.has(n.id)) return;
+      let parent = n.parentId ? byId[n.parentId] : null;
+      const seen = new Set();
+      while (parent && !seen.has(parent.id)) {
+        seen.add(parent.id);
+        unveil.add(parent.id);
+        parent = parent.parentId ? byId[parent.parentId] : null;
+      }
+    });
+    setNodes((ns) =>
+      ns.map((n) => (unveil.has(n.id) ? { ...n, hidden: false } : n)),
+    );
+  }
+  function reorderSelection(toFront) {
+    const ids = selRef.current.nodes;
+    if (!ids.length) return;
+    pushUndo(serialize());
+    setNodes((ns) => reorderNodeSelection(ns, ids, toFront));
+  }
+  function toggleShowHidden() {
+    setShowHidden((v) => !v);
+  }
   function duplicate() {
     const ids = selRef.current.nodes;
     if (!ids.length) return;
@@ -1111,7 +1208,7 @@ export default function App() {
     nodesRef.current
       .filter((n) => ids.includes(n.id))
       .forEach((n) => {
-        const c = { ...n, id: uid(), x: n.x + 30, y: n.y + 30, parentId: null };
+        const c = { ...n, id: uid(), x: n.x + 30, y: n.y + 30, parentId: null, locked: false, hidden: false };
         map[n.id] = c.id;
         clones.push(c);
       });
@@ -1158,7 +1255,7 @@ export default function App() {
     const snapShot = serialize();
     const idMap = {};
     const clones = clip.nodes.map((n) => {
-      const c = { ...n, id: uid(), x: n.x + 30, y: n.y + 30, parentId: null };
+      const c = { ...n, id: uid(), x: n.x + 30, y: n.y + 30, parentId: null, locked: false, hidden: false };
       idMap[n.id] = c.id;
       return c;
     });
@@ -1211,9 +1308,10 @@ export default function App() {
     });
   }
   function nudgeSel(dx, dy) {
-    const ids = selRef.current.nodes;
+    const ids = selRef.current.nodes.filter((id) => !lockedIds.has(id));
     if (!ids.length) return false;
-    const moveSet = expandGroups(ids);
+    const moveSet = expandGroups(ids).filter((id) => !lockedIds.has(id));
+    if (!moveSet.length) return false;
     pushUndo(serialize(), "nudge");
     setNodes((ns) =>
       ns.map((n) =>
@@ -1276,7 +1374,7 @@ export default function App() {
     setSel({ nodes: [], edges: [] });
   }
   function alignSel(dir) {
-    const ids = selRef.current.nodes;
+    const ids = selRef.current.nodes.filter((id) => !lockedIds.has(id));
     if (ids.length < 2) return;
     const snapShot = serialize();
     const chosen = nodesRef.current.filter((n) => ids.includes(n.id));
@@ -1368,14 +1466,24 @@ export default function App() {
     );
   }
   function handleAutoLayout(direction = "TB") {
-    const ids = selRef.current.nodes;
-    const isSubset = ids && ids.length >= 2;
+    const unlockedIds = nodesRef.current
+      .filter((n) => !lockedIds.has(n.id))
+      .map((n) => n.id);
+    const selected = selRef.current.nodes.filter((id) =>
+      unlockedIds.includes(id),
+    );
+    const isSubset = selected.length >= 2;
+    const anyLocked = unlockedIds.length < nodesRef.current.length;
     pushUndo(serialize());
     const res = layoutDiagram({
       nodes: nodesRef.current,
       edges: edgesRef.current,
       direction,
-      selectedIds: isSubset ? ids : null,
+      selectedIds: isSubset
+        ? selected
+        : anyLocked && unlockedIds.length >= 2
+          ? unlockedIds
+          : null,
     });
     setNodes(res.nodes);
     setEdges(res.edges);
@@ -1690,7 +1798,8 @@ export default function App() {
     zoomAt(r.width / 2, r.height / 2, 1 / 1.2);
   };
   function fitView() {
-    const ns = nodesRef.current;
+    const hidden = hiddenNodeIds(nodesRef.current);
+    const ns = nodesRef.current.filter((n) => !hidden.has(n.id));
     if (!ns.length) return;
     const r = wrapRef.current.getBoundingClientRect();
     const pad = 60;
@@ -1819,6 +1928,11 @@ export default function App() {
     stepBack,
     closePlayback,
     togglePresenter,
+    toggleLock,
+    toggleHidden,
+    bringToFront: () => reorderSelection(true),
+    sendToBack: () => reorderSelection(false),
+    toggleShowHidden,
   };
   useEffect(() => {
     const h = (e) => {
@@ -2028,11 +2142,12 @@ export default function App() {
       padding = 40,
       theme: optTheme = theme,
     } = typeof options === "boolean" ? { transparent: options } : options;
-    const ns = nodesRef.current;
+    const visible = visibleDiagram(nodesRef.current, edgesRef.current);
+    const ns = visible.nodes;
     if (!ns || !ns.length) return null;
     return exportDiagramToSvg({
       nodes: ns,
-      edges: edgesRef.current,
+      edges: visible.edges,
       theme: optTheme,
       transparent,
       padding,
@@ -2217,9 +2332,10 @@ export default function App() {
     return copyTextFallback(b.str);
   };
   const exportMermaidFile = (direction = "TB") => {
+    const visible = visibleDiagram(nodesRef.current, edgesRef.current);
     const code = exportMermaid({
-      nodes: nodesRef.current,
-      edges: edgesRef.current,
+      nodes: visible.nodes,
+      edges: visible.edges,
       direction,
     });
     save(
@@ -2228,9 +2344,10 @@ export default function App() {
     );
   };
   const copyMermaidToClipboard = async (direction = "TB") => {
+    const visible = visibleDiagram(nodesRef.current, edgesRef.current);
     const code = exportMermaid({
-      nodes: nodesRef.current,
-      edges: edgesRef.current,
+      nodes: visible.nodes,
+      edges: visible.edges,
       direction,
     });
     try {
@@ -2533,6 +2650,9 @@ export default function App() {
           onToggleInspector={() => setIsInspectorOpen((prev) => !prev)}
           isInspectorOpen={isInspectorOpen}
           onToggleSim={toggleSim}
+          hiddenCount={hiddenIds.size}
+          showHidden={showHidden}
+          onToggleShowHidden={toggleShowHidden}
         />
       )}
 
@@ -2550,8 +2670,10 @@ export default function App() {
         showGrid={showGrid && !simMode}
         tool={tool}
         ordered={ordered}
-        edges={edges}
+        edges={renderEdges}
         byId={byId}
+        lockedIds={lockedIds}
+        ghostIds={showHidden ? hiddenIds : null}
         sel={sel}
         hover={hover}
         marquee={marquee}
@@ -2622,8 +2744,8 @@ export default function App() {
       <CanvasSearch
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
-        nodes={nodes}
-        edges={edges}
+        nodes={renderNodes}
+        edges={renderEdges}
         onFocusNode={focusNode}
         onFocusEdge={focusEdge}
       />
@@ -2631,7 +2753,7 @@ export default function App() {
       {/* Radar Minimap */}
       {showMinimap && !presenter && (
         <Minimap
-          nodes={nodes}
+          nodes={renderNodes}
           cam={cam}
           simMode={simMode}
           onPanToWorld={(wx, wy) =>
@@ -2747,6 +2869,10 @@ export default function App() {
           deleteSelection={deleteSelection}
           deleteConnections={deleteConnections}
           duplicate={duplicate}
+          onToggleLock={toggleLock}
+          onToggleHidden={toggleHidden}
+          onBringToFront={() => reorderSelection(true)}
+          onSendToBack={() => reorderSelection(false)}
           onAlign={alignSel}
           onSetTheme={setTheme}
           onHarmonizeDiagram={() => harmonizeDiagram(theme)}
@@ -2772,6 +2898,12 @@ export default function App() {
         onDelete={deleteSelection}
         onDeleteConnections={deleteConnections}
         onSelectAll={selectAll}
+        onToggleLock={toggleLock}
+        onToggleHidden={toggleHidden}
+        onBringToFront={() => reorderSelection(true)}
+        onSendToBack={() => reorderSelection(false)}
+        onToggleShowHidden={toggleShowHidden}
+        hiddenCount={hiddenIds.size}
         onAlign={alignSel}
         onFit={fitView}
         onZoomIn={zoomIn}

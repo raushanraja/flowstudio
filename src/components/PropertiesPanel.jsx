@@ -24,6 +24,12 @@ import {
   CornerDownRight,
   Minus,
   Scaling,
+  Lock,
+  Unlock,
+  Eye,
+  EyeOff,
+  BringToFront,
+  SendToBack,
 } from "lucide-react";
 import {
   SHAPE_DEFS,
@@ -113,6 +119,10 @@ export default function PropertiesPanel({
   deleteSelection,
   deleteConnections,
   duplicate,
+  onToggleLock,
+  onToggleHidden,
+  onBringToFront,
+  onSendToBack,
   onAlign,
   onSetTheme,
   onHarmonizeDiagram,
@@ -601,6 +611,76 @@ export default function PropertiesPanel({
           >
             1 Node Selected
           </div>
+
+          {/* Lock / Visibility / Layer order */}
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              className="fs-btn"
+              style={{
+                flex: 1,
+                padding: "6px 8px",
+                background: single.locked ? "var(--accent-light)" : undefined,
+                color: single.locked ? "var(--accent)" : undefined,
+              }}
+              title={
+                single.locked
+                  ? "Unlock this node so it can be moved or deleted"
+                  : "Lock this node to prevent moving, resizing, or deleting it"
+              }
+              onClick={onToggleLock}
+            >
+              {single.locked ? <Unlock size={13} /> : <Lock size={13} />}
+              {single.locked ? "Unlock" : "Lock"}
+            </button>
+            <button
+              className="fs-btn"
+              style={{
+                flex: 1,
+                padding: "6px 8px",
+                background: single.hidden ? "var(--accent-light)" : undefined,
+                color: single.hidden ? "var(--accent)" : undefined,
+              }}
+              title={
+                single.hidden
+                  ? "Show this node on the canvas again"
+                  : "Hide this node from the canvas and exports"
+              }
+              onClick={onToggleHidden}
+            >
+              {single.hidden ? <Eye size={13} /> : <EyeOff size={13} />}
+              {single.hidden ? "Unhide" : "Hide"}
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              className="fs-btn-ghost"
+              style={{ flex: 1, padding: "5px 8px", fontSize: 11 }}
+              title="Bring this node in front of other nodes"
+              onClick={onBringToFront}
+            >
+              <BringToFront size={13} />
+              Bring to front
+            </button>
+            <button
+              className="fs-btn-ghost"
+              style={{ flex: 1, padding: "5px 8px", fontSize: 11 }}
+              title="Send this node behind other nodes"
+              onClick={onSendToBack}
+            >
+              <SendToBack size={13} />
+              Send to back
+            </button>
+          </div>
+          {single.locked && (
+            <div style={{ fontSize: 10, color: "var(--muted)", lineHeight: 1.45 }}>
+              Locked: dragging, resizing, and deletion are disabled.
+            </div>
+          )}
+          {single.hidden && (
+            <div style={{ fontSize: 10, color: "var(--muted)", lineHeight: 1.45 }}>
+              Hidden: node is excluded from canvas rendering and exports.
+            </div>
+          )}
 
           {/* Preset Color Swatches */}
           <div className="fs-lbl">

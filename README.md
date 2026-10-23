@@ -10,6 +10,7 @@ A visual flowchart and diagram editor built with React and Vite. Design diagrams
 - Support for multiple node types: Rectangle, Rounded Box, Pill, Ellipse, Diamond, Cylinder, Group Containers, and Freeform Text.
 - Full styling customization: Background fills, stroke colors, stroke width, dashed borders, badges, and font sizing.
 - Grouping and hierarchy support with auto-expanding bounding boxes.
+- Lock and hide nodes; reveal hidden nodes as ghosts and reorder layers with bring-to-front / send-to-back.
 
 ### Mermaid Flowchart Import & Auto-Layout
 - Direct import from `.mmd`, `.md`, `.txt`, or raw Mermaid syntax definitions.
