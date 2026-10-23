@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { edgeGeom, normRect, portPos } from "../lib/geometry.js";
 import { getEffectiveEdgeTextColor } from "../lib/theme.js";
 import { NodeShape, NodeText } from "./Shapes.jsx";
@@ -82,6 +83,20 @@ export default function Canvas({
   const editingNode = editing && byId[editing.id];
   const hasSelection = sel.nodes.length > 0 || sel.edges.length > 0;
   const nonGroupNodesCount = ordered.filter((n) => n.type !== "group").length;
+  const editRef = useRef(null);
+  const editId = editing?.id;
+  const selectAllOnEdit = !!editing?.selectAll;
+
+  // Keyboard-initiated edits (Enter) start with the whole label selected so
+  // typing replaces it; mouse edits (double-click) put the caret at the end.
+  useEffect(() => {
+    if (!editId) return;
+    const el = editRef.current;
+    if (!el) return;
+    el.focus();
+    if (selectAllOnEdit) el.select();
+    else el.setSelectionRange(el.value.length, el.value.length);
+  }, [editId, selectAllOnEdit]);
 
   return (
     <div
@@ -569,6 +584,7 @@ export default function Canvas({
       {editingNode && (
         <textarea
           autoFocus
+          ref={editRef}
           className="fs-edit"
           value={editing.value}
           wrap={editingNode.type === "textarea" ? "off" : undefined}
@@ -624,6 +640,7 @@ export default function Canvas({
         return (
           <input
             autoFocus
+            ref={editRef}
             type="text"
             className="fs-edit"
             value={editing.value}

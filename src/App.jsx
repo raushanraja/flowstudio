@@ -1055,6 +1055,25 @@ export default function App() {
     e.stopPropagation();
     setEditing({ id: edge.id, value: edge.label || "" });
   };
+  // Enter on a single selected node or link starts editing its label, same as
+  // double-clicking it.
+  function editSelection() {
+    if (simModeRef.current || playbackRef.current) return false;
+    const { nodes: selNodes, edges: selEdges } = selRef.current;
+    if (selNodes.length === 1 && !selEdges.length) {
+      const n = nodesRef.current.find((m) => m.id === selNodes[0]);
+      if (!n) return false;
+      setEditing({ id: n.id, value: n.text ?? "", selectAll: true });
+      return true;
+    }
+    if (selEdges.length === 1 && !selNodes.length) {
+      const ed = edgesRef.current.find((m) => m.id === selEdges[0]);
+      if (!ed) return false;
+      setEditing({ id: ed.id, value: ed.label || "", selectAll: true });
+      return true;
+    }
+    return false;
+  }
   const onNodeHover = (id) => setHover(id);
   const onNodeLeave = (id) => setHover((h) => (h === id ? null : h));
 
@@ -1745,6 +1764,7 @@ export default function App() {
     selectAll,
     nudgeSel,
     addNode,
+    editSelection,
     escape: () => {
       setIsSearchOpen(false);
       if (simModeRef.current) {
@@ -1878,6 +1898,11 @@ export default function App() {
       } else if (e.key === "Escape") {
         e.preventDefault();
         A.escape();
+      } else if (e.key === "Enter" && !mod) {
+        // Let Enter activate a focused button/link rather than editing in place.
+        const ae = document.activeElement;
+        if (ae && (ae.tagName === "BUTTON" || ae.tagName === "A")) return;
+        if (A.editSelection()) e.preventDefault();
       } else if (e.key === " ") {
         if (A.togglePlay()) e.preventDefault();
       } else if (e.key === ",") {
