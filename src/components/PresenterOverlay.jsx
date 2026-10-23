@@ -7,7 +7,29 @@ export default function PresenterOverlay({
   steps = 0,
   done = false,
   playing = false,
+  loopDetected = false,
+  loopExited = false,
+  loopNodeLabel = "",
+  laps = 0,
+  mode = "run",
 }) {
+  const status = loopDetected
+    ? "Loop detected"
+    : loopExited
+      ? "Exited loop"
+      : done
+        ? "Complete"
+        : mode === "demo"
+          ? `Lap ${laps + 1} · ${steps} hops`
+          : playing
+            ? `Step ${steps}`
+            : `Paused · step ${steps}`;
+  const statusColor = loopDetected
+    ? "#f59e0b"
+    : loopExited || done
+      ? "var(--accent)"
+      : "var(--muted)";
+
   return (
     <div
       className="fs-presenter"
@@ -51,15 +73,11 @@ export default function PresenterOverlay({
               fontSize: 11,
               fontWeight: 700,
               fontFamily: "'JetBrains Mono', monospace",
-              color: done ? "var(--accent)" : "var(--muted)",
+              color: statusColor,
               whiteSpace: "nowrap",
             }}
           >
-            {done
-              ? "Complete"
-              : playing
-                ? `Step ${steps}`
-                : `Paused · step ${steps}`}
+            {status}
           </span>
         </div>
 
@@ -80,6 +98,31 @@ export default function PresenterOverlay({
         >
           {nodeLabel ? nodeLabel.split("\n")[0] : "Waiting for playback…"}
         </div>
+        {loopDetected ? (
+          <div
+            style={{
+              fontSize: 11,
+              color: "#f59e0b",
+              marginTop: 6,
+              lineHeight: 1.4,
+            }}
+          >
+            No loop exit branch was available
+            {loopNodeLabel ? ` at “${loopNodeLabel.split("\n")[0]}”` : ""}.
+            Stop and add an exit edge or different branch choice.
+          </div>
+        ) : loopExited && loopNodeLabel ? (
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--accent)",
+              marginTop: 6,
+              lineHeight: 1.4,
+            }}
+          >
+            Loop exit taken at “{loopNodeLabel.split("\n")[0]}”.
+          </div>
+        ) : null}
       </div>
 
       {note ? (

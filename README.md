@@ -24,6 +24,7 @@ A visual flowchart and diagram editor built with React and Vite. Design diagrams
 - Background services: flag any node as a service (the Repeat toggle in Properties) to give it its own token that keeps cycling on its own interval while the main flow runs, even when the main token is waiting on a branch.
 - Step-by-step execution playback with animated edge pulses and active node glow.
 - Presenter mode: fullscreen-friendly playback with per-step notes that follow the active node.
+- Loop detection handles branch-driven loops and decision-free cycles using the scenario retry count, with exit/detection status surfaced in presenter mode.
 - Loop exit handling and manual branching choices during simulation.
 
 ### Smart Edge Routing & Waypoints

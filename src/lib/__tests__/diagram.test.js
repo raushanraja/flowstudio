@@ -119,7 +119,7 @@ describe("normalizeDiagram", () => {
           name: "Happy path",
           startId: "b",
           choices: { a: "e1", b: "e1", missing: "e1" },
-          loopExits: { a: "nope" },
+          loopExits: { a: "e1", b: "nope" },
           notes: { a: "Start here", b: "Finish", missing: "drop" },
           maxLoopRetries: 3,
         },
@@ -141,6 +141,32 @@ describe("normalizeDiagram", () => {
     });
     expect(d.scenarios[1].startId).toBeUndefined();
     expect(d.activeScenarioId).toBe("s1");
+  });
+
+  it("drops a loop exit that matches the default branch", () => {
+    const d = normalizeDiagram({
+      nodes: [
+        { id: "a", type: "rect" },
+        { id: "b", type: "rect" },
+      ],
+      edges: [
+        { id: "first", from: "a", to: "b" },
+        { id: "second", from: "a", to: "b" },
+      ],
+      scenarios: [
+        {
+          name: "Default loop",
+          loopExits: { a: "first" },
+        },
+        {
+          name: "Explicit loop",
+          loopExits: { a: "second" },
+          choices: { a: "second" },
+        },
+      ],
+    });
+    expect(d.scenarios[0].loopExits).toEqual({});
+    expect(d.scenarios[1].loopExits).toEqual({});
   });
 
   it("resets an unknown active scenario", () => {

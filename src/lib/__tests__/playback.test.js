@@ -114,4 +114,96 @@ describe("createPlayback", () => {
     expect(engine.snapshot().loopExited).toBe(true);
     expect(engine.snapshot().activeNode).toBe("b");
   });
+
+  it("honors multiple retries before taking the loop exit", () => {
+    const nodes = [node("a"), node("b"), node("c")];
+    const edges = [
+      edge("loop", "a", "b"),
+      edge("back", "b", "a"),
+      edge("exit", "a", "c"),
+    ];
+    const engine = createPlayback({
+      nodes,
+      edges,
+      startId: "a",
+      maxLoopRetries: 2,
+      choices: { a: "loop" },
+      loopExits: { a: "exit" },
+    });
+
+    engine.hop(); // b
+    engine.hop(); // a
+    engine.hop(); // b
+    engine.hop(); // a
+    expect(engine.snapshot().loopExited).toBe(false);
+    engine.hop(); // exit
+    expect(engine.snapshot().loopExited).toBe(true);
+    expect(engine.snapshot().activeNode).toBe("c");
+  });
+
+  it("detects a decision-free cycle after one lap", () => {
+    const nodes = [node("a"), node("b")];
+    const edges = [edge("ab", "a", "b"), edge("ba", "b", "a")];
+    const engine = createPlayback({
+      nodes,
+      edges,
+      startId: "a",
+      maxLoopRetries: 1,
+    });
+
+    engine.hop();
+    expect(engine.snapshot().loopDetected).toBe(false);
+    engine.hop();
+    const snap = engine.snapshot();
+    expect(snap.loopDetected).toBe(true);
+    expect(snap.loopNode).toBe("a");
+    expect(snap.done).toBe(true);
+  });
+
+  it("allows the configured number of decision-free laps before stopping", () => {
+    const nodes = [node("a"), node("b")];
+    const edges = [edge("ab", "a", "b"), edge("ba", "b", "a")];
+    const engine = createPlayback({
+      nodes,
+      edges,
+      startId: "a",
+      maxLoopRetries: 2,
+    });
+
+    engine.hop(); // b
+    engine.hop(); // a
+    expect(engine.snapshot().loopDetected).toBe(false);
+    engine.hop(); // b
+    engine.hop(); // a
+    expect(engine.snapshot().loopDetected).toBe(true);
+  });
+
+  it("keeps loop state consistent after stepping back through an exit", () => {
+    const nodes = [node("a"), node("b"), node("c")];
+    const edges = [
+      edge("loop", "a", "b"),
+      edge("back", "b", "a"),
+      edge("exit", "a", "c"),
+    ];
+    const engine = createPlayback({
+      nodes,
+      edges,
+      startId: "a",
+      maxLoopRetries: 1,
+      choices: { a: "loop" },
+      loopExits: { a: "exit" },
+    });
+
+    engine.hop(); // b
+    engine.hop(); // a
+    engine.hop(); // exit -> c
+    expect(engine.snapshot().loopExited).toBe(true);
+    expect(engine.snapshot().activeNode).toBe("c");
+
+    engine.back(); // replay to a
+    engine.hop(); // exit again
+    expect(engine.snapshot().loopExited).toBe(true);
+    expect(engine.snapshot().loopDetected).toBe(false);
+    expect(engine.snapshot().activeNode).toBe("c");
+  });
 });

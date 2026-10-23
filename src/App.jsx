@@ -16,6 +16,7 @@ import {
 import { normalizeDiagram } from "./lib/diagram.js";
 import { sampleDiagram } from "./lib/sample.js";
 import { hiddenNodeIds, reorderNodeSelection, visibleDiagram } from "./lib/layers.js";
+import { pruneScenarioRefs } from "./lib/scenarios.js";
 import { extractMermaidSource, mermaidTextToDiagram } from "./lib/mermaid.js";
 import { createPlayback, DEFAULT_HOP_MS } from "./lib/playback.js";
 import { uid, clamp } from "./lib/utils.js";
@@ -228,10 +229,7 @@ export default function App() {
     const active = scenariosRef.current.find(
       (s) => s.id === activeScenarioRef.current,
     );
-    const startId =
-      selRef.current.nodes.length === 1
-        ? selRef.current.nodes[0]
-        : active?.startId || undefined;
+    const startId = active?.startId || undefined;
     return JSON.stringify({
       choices: active?.choices || {},
       loopExits: active?.loopExits || {},
@@ -245,10 +243,16 @@ export default function App() {
     const active = scenariosRef.current.find(
       (s) => s.id === activeScenarioRef.current,
     );
-    const startId =
-      selRef.current.nodes.length === 1
-        ? selRef.current.nodes[0]
-        : active?.startId || undefined;
+    // An explicit scenario start always wins. Selection is only a fallback
+    // for ad-hoc runs without a configured start node.
+    const selId =
+      selRef.current.nodes.length === 1 ? selRef.current.nodes[0] : null;
+    const selNode = selId
+      ? nodesRef.current.find((n) => n.id === selId)
+      : null;
+    const selectionStart =
+      selNode && selNode.type !== "group" ? selNode.id : undefined;
+    const startId = active?.startId || selectionStart;
     const eng = createPlayback({
       nodes: nodesRef.current,
       edges: edgesRef.current,
@@ -269,6 +273,8 @@ export default function App() {
     const selNodes = selRef.current.nodes;
     if (selNodes.length !== 1) return;
     const sid = selNodes[0];
+    const startNode = nodesRef.current.find((n) => n.id === sid);
+    if (!startNode || startNode.type === "group") return;
     setScenarios((list) => {
       let id = activeScenarioRef.current;
       if (!id || !list.some((s) => s.id === id)) {
@@ -1119,6 +1125,11 @@ export default function App() {
     const eids = new Set(selRef.current.edges);
     if (!ids.size && !eids.size) return;
     pushUndo(snapShot);
+    const removedEdges = edgesRef.current
+      .filter(
+        (e) => eids.has(e.id) || ids.has(e.from) || ids.has(e.to),
+      )
+      .map((e) => e.id);
     setNodes((ns) =>
       ns
         .filter((n) => !ids.has(n.id))
@@ -1128,6 +1139,9 @@ export default function App() {
       es.filter(
         (e) => !eids.has(e.id) && !ids.has(e.from) && !ids.has(e.to),
       ),
+    );
+    setScenarios((list) =>
+      pruneScenarioRefs(list, { nodeIds: ids, edgeIds: removedEdges }),
     );
     setSel({ nodes: [], edges: [] });
   }
@@ -1146,6 +1160,7 @@ export default function App() {
     pushUndo(serialize());
     const gone = new Set(victims.map((e) => e.id));
     setEdges((es) => es.filter((e) => !gone.has(e.id)));
+    setScenarios((list) => pruneScenarioRefs(list, { edgeIds: gone }));
     setSel((s) => ({ ...s, edges: [] }));
   }
   /* ---------- lock / visibility / layers ---------- */
@@ -1661,7 +1676,9 @@ export default function App() {
         const choices = { ...s.choices };
         if (edgeId) choices[nodeId] = edgeId;
         else delete choices[nodeId];
-        return { ...s, choices };
+        const loopExits = { ...(s.loopExits || {}) };
+        if (edgeId && loopExits[nodeId] === edgeId) delete loopExits[nodeId];
+        return { ...s, choices, loopExits };
       }),
     );
   const setScenarioLoopExit = (id, nodeId, edgeId) =>
@@ -1750,6 +1767,12 @@ export default function App() {
                 if (edgesNow.some((e) => e.from === nodeId && e.id === edgeId))
                   loopExits[nodeId] = edgeId;
               }
+            }
+            for (const nodeId of Object.keys(loopExits)) {
+              const branch =
+                choices[nodeId] ||
+                edgesNow.find((e) => e.from === nodeId)?.id;
+              if (branch === loopExits[nodeId]) delete loopExits[nodeId];
             }
             const maxLoopRetries = typeof s.maxLoopRetries === "number" ? Math.max(1, s.maxLoopRetries) : 1;
             const nodesNow = nodesRef.current;
@@ -2475,6 +2498,9 @@ export default function App() {
       pushUndo(serialize());
       setNodes(d.nodes);
       setEdges(d.edges);
+      setScenarios([]);
+      setActiveScenarioId(null);
+      setRecording(false);
       setSel({ nodes: [], edges: [] });
       setTimeout(fitView, 0);
     } catch (err) {
@@ -2532,8 +2558,15 @@ export default function App() {
     }
     setNodes(INITIAL.nodes);
     setEdges(INITIAL.edges);
+    setScenarios([]);
+    setActiveScenarioId(null);
+    setRecording(false);
     setSel({ nodes: [], edges: [] });
     setCam({ x: 20, y: 10, zoom: 1 });
+    setShowScenarios(false);
+    setEditing(null);
+    setSimMode(false);
+    closePlayback();
   }
 
   // Commit the in-progress text/label edit. Safe to call repeatedly: the
@@ -2821,6 +2854,15 @@ export default function App() {
           steps={playback?.snapshot()?.steps || 0}
           done={!!playback?.snapshot()?.done}
           playing={playing}
+          loopDetected={!!playback?.snapshot()?.loopDetected}
+          loopExited={!!playback?.snapshot()?.loopExited}
+          loopNodeLabel={
+            byId[playback?.snapshot()?.loopNode]?.text ||
+            playback?.snapshot()?.loopNode ||
+            ""
+          }
+          laps={playback?.snapshot()?.laps || 0}
+          mode={playMode}
         />
       )}
 

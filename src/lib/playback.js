@@ -164,6 +164,11 @@ export function createPlayback({
     loopDetected: false,
     loopExited: false,
     loopNode: null,
+    // Decision-free cycle detection: trips when a node is revisited without
+    // passing a branching node in between.
+    decisionCount: 0,
+    visitDecisions: start ? { [start]: 0 } : {},
+    pureLoopHits: {},
   });
   // Rebuilding the main token (laps, stepping back) must not disturb
   // background services mid-flight.
@@ -252,6 +257,25 @@ export function createPlayback({
     token.t = 0;
     state.steps++;
     state.activeNode = to;
+    // A node revisited without any branching decision in between means the
+    // run is circling through a decision-free cycle. Stop after the configured
+    // retry count instead of the old hard-coded 50-hop safety.
+    if (!isDemo && to) {
+      const seenAt = state.visitDecisions[to];
+      if (seenAt === state.decisionCount) {
+        state.pureLoopHits[to] = (state.pureLoopHits[to] || 0) + 1;
+        if (state.pureLoopHits[to] >= Math.max(1, maxLoopRetries)) {
+          state.loopDetected = true;
+          state.loopNode = to;
+          state.done = true;
+          if (!silent) emit();
+          return;
+        }
+      } else {
+        state.pureLoopHits[to] = 0;
+      }
+      state.visitDecisions[to] = state.decisionCount;
+    }
     const outs = outgoing.get(to) || [];
     if (!outs.length) {
       if (isDemo) {
@@ -262,7 +286,10 @@ export function createPlayback({
         state.done = true;
       }
     } else if (!isDemo && state.steps >= MAX_STEPS) {
+      // Safety net for multi-edge loops that keep routing through branches.
       state.done = true;
+      state.loopDetected = true;
+      state.loopNode = to;
     } else if (isDemo) {
       state.hold = byId.get(to)?.dwellMs ?? 0;
     }
@@ -298,18 +325,15 @@ export function createPlayback({
       return;
     }
 
-    // Detect loops: count how many times this (activeNode, edge) pair has been
-    // traversed in history. Demo mode loops are intentional, so only run mode
-    // applies the exit/stop logic.
-    if (!isDemo) {
+    // Detect loops at branching nodes: count how many times this
+    // (activeNode, edge) pair has been traversed. Decision-free cycles are
+    // caught by the arrival-based detector instead.
+    if (!isDemo && outs.length > 1) {
       const count = state.history.filter(
         (h) => h.node === state.activeNode && h.edge === edge,
       ).length;
 
-      // Decision nodes (outs.length > 1) trigger loop exit at count >=
-      // maxLoopRetries. Single-outgoing-edge intermediate nodes pass through to
-      // let decision nodes handle loop exit.
-      const threshold = outs.length > 1 ? Math.max(1, maxLoopRetries) : 50;
+      const threshold = Math.max(1, maxLoopRetries);
 
       if (count >= threshold) {
         const customExit = exits[state.activeNode];
@@ -333,6 +357,7 @@ export function createPlayback({
       }
     }
 
+    if (outs.length > 1) state.decisionCount += 1;
     state.awaiting = false;
     state.tokens[0].edge = edge;
     state.tokens[0].t = 0;
@@ -454,6 +479,13 @@ export function createPlayback({
       state.tokens[0].edge = null;
       state.tokens[0].t = 0;
       state.done = false;
+      // Replayed history does not reconstruct visit counters; restart them
+      // from the current node so loop detection stays conservative.
+      state.decisionCount = 0;
+      state.visitDecisions = state.activeNode
+        ? { [state.activeNode]: 0 }
+        : {};
+      state.pureLoopHits = {};
       emit();
     },
 

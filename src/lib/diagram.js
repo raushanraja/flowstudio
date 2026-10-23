@@ -151,6 +151,13 @@ export function normalizeDiagram(data) {
             notes[nodeId] = text.slice(0, 2000);
         }
       }
+      // A "loop exit" that is also the branch actually taken (explicit or the
+      // implicit first-edge default) can never fire.
+      for (const nodeId of Object.keys(loopExits)) {
+        const branch =
+          choices[nodeId] || edges.find((e) => e.from === nodeId)?.id;
+        if (branch === loopExits[nodeId]) delete loopExits[nodeId];
+      }
       scenarios.push({
         id,
         name: String(s.name).slice(0, 60),

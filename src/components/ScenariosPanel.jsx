@@ -339,6 +339,9 @@ export default function ScenariosPanel({
           )}
           {decisions.map((d) => {
             const chosen = active.choices[d.id] || "";
+            // The engine ignores a loop exit equal to the branch actually
+            // taken, including the implicit first-edge default.
+            const branchEdge = chosen || d.edges[0]?.id;
             const loopExitChosen = active.loopExits?.[d.id] || "";
             return (
               <div key={d.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -366,11 +369,13 @@ export default function ScenariosPanel({
                     style={{ fontSize: 11 }}
                   >
                     <option value="">Auto (alternate branch)</option>
-                    {d.edges.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.label}
-                      </option>
-                    ))}
+                    {d.edges
+                      .filter((e) => e.id !== branchEdge)
+                      .map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.label}
+                        </option>
+                      ))}
                   </select>
                 </label>
               </div>
