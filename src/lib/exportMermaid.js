@@ -112,7 +112,7 @@ export function exportMermaid({
       else arrowSyntax = "-->";
     }
 
-    const edgeText = esc(e.text || "");
+    const edgeText = esc(e.label ?? e.text ?? "");
     if (edgeText) {
       if (isDashed) {
         if (isBi) {
