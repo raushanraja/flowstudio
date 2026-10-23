@@ -19,7 +19,7 @@ A visual flowchart and diagram editor built with React and Vite. Design diagrams
 
 ### Flow Simulation & Playback Engine
 - Define, edit, and organize multiple scenario test paths, each with its own start node, branch choices, loop-exit edges, and max retries.
-- Run mode: pauses at undecided branches and lets you pick the next edge on the canvas; Record mode captures your start node and branch picks into the active scenario.
+- Run mode: pauses at undecided branches and lets you pick the next edge on the canvas; Record mode captures your start node and branch picks into the active scenario, including the loop-exit branch once retries are exhausted.
 - Demo mode: continuous timed hops (global interval plus per-edge travel and per-node dwell overrides), holds at dead ends, then loops forever with a lap counter.
 - Background services: flag any node as a service (the Repeat toggle in Properties) to give it its own token that keeps cycling on its own interval while the main flow runs, even when the main token is waiting on a branch.
 - Step-by-step execution playback with animated edge pulses and active node glow.

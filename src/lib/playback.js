@@ -153,6 +153,7 @@ export function createPlayback({
   const freshMain = (laps = 0) => ({
     tokens: [{ id: 0, edge: null, t: 0 }],
     activeNode: start || null,
+    startNode: start || null,
     steps: 0,
     done: !start,
     history: [], // [{ node, edge, to }] one entry per completed hop

@@ -437,7 +437,8 @@ export default function ScenariosPanel({
           {recording && (
             <div style={{ fontSize: 11, color: "var(--accent)", lineHeight: 1.5 }}>
               Recording: click a branch badge during playback to capture it
-              into this scenario.
+              into this scenario. Loop exits are recorded automatically when
+              the retry limit is reached.
             </div>
           )}
         </div>

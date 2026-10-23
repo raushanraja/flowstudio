@@ -113,6 +113,9 @@ describe("createPlayback", () => {
     engine.hop();
     expect(engine.snapshot().loopExited).toBe(true);
     expect(engine.snapshot().activeNode).toBe("b");
+    expect(engine.snapshot().startNode).toBe("a");
+    const last = engine.snapshot().history.at(-1);
+    expect(last).toMatchObject({ node: "a", edge: "exit" });
   });
 
   it("honors multiple retries before taking the loop exit", () => {

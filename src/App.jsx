@@ -166,6 +166,8 @@ export default function App() {
   activeScenarioRef.current = activeScenarioId;
   const recordingRef = useRef(recording);
   recordingRef.current = recording;
+  const loopExitSeenRef = useRef(new Set());
+  const recordingUpdateRef = useRef(false);
   const editingRef = useRef(editing);
   editingRef.current = editing;
   const simModeRef = useRef(simMode);
@@ -209,6 +211,57 @@ export default function App() {
     setPlaying(false);
   };
   const bumpFrame = () => setPlayFrame((f) => f + 1);
+  // While recording, capture the alternate edge the engine took when a loop
+  // exhausted its retries. Distinct node/edge pairs are recorded once per run.
+  const recordLoopExitIfNeeded = (eng) => {
+    if (!recordingRef.current) return;
+    const snap = eng.snapshot();
+    if (!snap.loopExited || !snap.loopNode) return;
+    const last = snap.history[snap.history.length - 1];
+    if (!last?.edge) return;
+    const edge = edgesRef.current.find((e) => e.id === last.edge);
+    if (!edge || edge.from !== snap.loopNode) return;
+    const key = `${snap.loopNode}:${last.edge}`;
+    if (loopExitSeenRef.current.has(key)) return;
+    loopExitSeenRef.current.add(key);
+    const active = scenariosRef.current.find(
+      (s) => s.id === activeScenarioRef.current,
+    );
+    if (active?.loopExits?.[snap.loopNode] === last.edge) return;
+    recordingUpdateRef.current = true;
+    setScenarios((list) => {
+      let id = activeScenarioRef.current;
+      const startId = snap.startNode || undefined;
+      if (!id || !list.some((s) => s.id === id)) {
+        id = uid("sc");
+        setActiveScenarioId(id);
+        return [
+          ...list,
+          {
+            id,
+            name: `Scenario ${list.length + 1}`,
+            startId,
+            choices: {},
+            loopExits: { [snap.loopNode]: last.edge },
+            notes: {},
+            maxLoopRetries: 1,
+          },
+        ];
+      }
+      return list.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              startId: s.startId || startId,
+              loopExits: {
+                ...(s.loopExits || {}),
+                [snap.loopNode]: last.edge,
+              },
+            }
+          : s,
+      );
+    });
+  };
   const loop = (ts) => {
     const eng = playbackRef.current;
     if (!eng || !playingRef.current) return;
@@ -216,6 +269,7 @@ export default function App() {
     lastTsRef.current = ts;
     const dt = Math.min(64, ts - last);
     eng.step(dt * (playModeRef.current === "demo" ? 1 : speedRef.current));
+    recordLoopExitIfNeeded(eng);
     bumpFrame();
     if (eng.snapshot().done) {
       stopLoop();
@@ -296,11 +350,13 @@ export default function App() {
       // the run follows the current path instead of resuming a stale one.
       if (playbackRef.current._sig !== activeScenarioSig()) {
         playbackRef.current = buildEngine();
+        loopExitSeenRef.current.clear();
         setPlayback(playbackRef.current);
         bumpFrame();
       }
       if (playbackRef.current.snapshot().done) {
         playbackRef.current.reset();
+        loopExitSeenRef.current.clear();
         bumpFrame();
       }
       if (!playingRef.current && !playbackRef.current.snapshot().done) {
@@ -312,6 +368,7 @@ export default function App() {
       return;
     }
     captureStartFromSelection();
+    loopExitSeenRef.current.clear();
     const eng = buildEngine();
     playbackRef.current = eng;
     setPlayback(eng);
@@ -327,6 +384,7 @@ export default function App() {
     if (!eng) return false;
     stopLoop();
     eng.hop();
+    recordLoopExitIfNeeded(eng);
     bumpFrame();
     return true;
   };
@@ -343,6 +401,7 @@ export default function App() {
     if (!eng) return;
     stopLoop();
     eng.reset();
+    loopExitSeenRef.current.clear();
     bumpFrame();
   };
   // Presenter mode: fullscreen-friendly view with the active step's note.
@@ -376,6 +435,7 @@ export default function App() {
     if (presenterRef.current) exitPresenter();
     stopLoop();
     playbackRef.current = null;
+    loopExitSeenRef.current.clear();
     setPlayback(null);
     setPlayFrame(0);
   };
@@ -393,9 +453,12 @@ export default function App() {
     const nodeId = eng.departNode();
     // Choosing a branch departs immediately so the token visibly responds.
     if (eng.choose(edgeId)) eng.hop();
+    recordLoopExitIfNeeded(eng);
     // Record mode: write the choice into the active scenario (creating one
     // on the fly) so future runs follow the same path.
     if (recordingRef.current && nodeId) {
+      const runStart = eng.snapshot().startNode || undefined;
+      recordingUpdateRef.current = true;
       setScenarios((list) => {
         let id = activeScenarioRef.current;
         if (!id || !list.some((s) => s.id === id)) {
@@ -403,12 +466,24 @@ export default function App() {
           setActiveScenarioId(id);
           return [
             ...list,
-            { id, name: `Scenario ${list.length + 1}`, choices: { [nodeId]: edgeId }, notes: {} },
+            {
+              id,
+              name: `Scenario ${list.length + 1}`,
+              startId: runStart,
+              choices: { [nodeId]: edgeId },
+              loopExits: {},
+              notes: {},
+              maxLoopRetries: 1,
+            },
           ];
         }
         return list.map((s) =>
           s.id === id
-            ? { ...s, choices: { ...s.choices, [nodeId]: edgeId } }
+            ? {
+                ...s,
+                startId: s.startId || runStart,
+                choices: { ...s.choices, [nodeId]: edgeId },
+              }
             : s,
         );
       });
@@ -429,9 +504,18 @@ export default function App() {
   useEffect(() => {
     if (!playbackRef.current) return;
     if (playbackRef.current._sig !== activeScenarioSig()) {
+      // Recording writes into the active scenario while it runs; that must not
+      // invalidate the engine or restart the run. Adopt the new signature and
+      // keep going. External scenario edits still rebuild below.
+      if (recordingUpdateRef.current) {
+        recordingUpdateRef.current = false;
+        playbackRef.current._sig = activeScenarioSig();
+        return;
+      }
       const wasPlaying = playingRef.current;
       stopLoop();
       playbackRef.current = buildEngine();
+      loopExitSeenRef.current.clear();
       setPlayback(playbackRef.current);
       if (wasPlaying && !playbackRef.current.snapshot().done) {
         playingRef.current = true;
@@ -440,6 +524,8 @@ export default function App() {
         rafRef.current = requestAnimationFrame(loopRef.current);
       }
       bumpFrame();
+    } else {
+      recordingUpdateRef.current = false;
     }
   }, [scenarios, activeScenarioId, playMode, demoIntervalMs]);
 
